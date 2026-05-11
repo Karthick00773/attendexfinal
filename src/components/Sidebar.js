@@ -37,6 +37,7 @@ export default function Sidebar() {
   const adminNav = [
     { to: '/',                  label: 'Home',            icon: 'home'       },
     { to: '/attendance/manage', label: 'Team Attendance', icon: 'attendance' },
+    { to: '/leaves',            label: 'Leave Requests',  icon: 'leave'      },
     { to: '/tasks',             label: 'Tasks',           icon: 'tasks',  badge: pendingExtCount > 0 ? pendingExtCount : null },
     { to: '/chat',              label: 'Group Chat',      icon: 'chat'       },
     { to: '/profile',           label: 'Profile',         icon: 'profile'    },
@@ -45,6 +46,7 @@ export default function Sidebar() {
   const ceoNav = [
     { to: '/',                  label: 'Home',            icon: 'home'       },
     { to: '/attendance/manage', label: 'Team Attendance', icon: 'attendance' },
+    { to: '/leaves',            label: 'Leave Requests',  icon: 'leave'      },
     { to: '/tasks',             label: 'Tasks',           icon: 'tasks',  badge: pendingExtCount > 0 ? pendingExtCount : null },
     { to: '/chat',              label: 'Group Chat',      icon: 'chat'       },
     { to: '/profile',           label: 'Profile',         icon: 'profile'    },

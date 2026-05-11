@@ -5,6 +5,14 @@ import './AttendancePage.css';
 
 function formatHrs(h) { return h != null ? Number(h).toFixed(2) + 'h' : '—'; }
 
+// Format seconds to HH:MM:SS
+function formatTime(seconds) {
+  const hrs = Math.floor(seconds / 3600);
+  const mins = Math.floor((seconds % 3600) / 60);
+  const secs = seconds % 60;
+  return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+}
+
 // ─────────────────────────────────────────────────────────────
 //  Inline camera capture — no style changes, just a clean
 //  overlay that fits the existing design language.
@@ -163,6 +171,11 @@ export default function AttendancePage() {
   const [msg,   setMsg]   = useState('');
   const [error, setError] = useState('');
 
+  // Live timer states
+  const [workingSeconds, setWorkingSeconds] = useState(0);
+  const [breakSeconds, setBreakSeconds] = useState(0);
+  const [breakStartTime, setBreakStartTime] = useState(null);
+
   // camera: null | 'checkin' | 'checkout'
   const [camera, setCamera] = useState(null);
 
@@ -177,6 +190,44 @@ export default function AttendancePage() {
       fetchMonthlySummary();
     }
   }, [fetchTodayAttendance, fetchAttendanceHistory, fetchMonthlySummary, showAttendanceDetails]);
+
+  const today = todayRecord;
+  const isBreak = activeBreak || Boolean(today?.break_start_time);
+
+  useEffect(() => {
+    if (isBreak && today?.break_start_time && !breakStartTime) {
+      setBreakStartTime(new Date(today.break_start_time));
+    }
+    if (!isBreak) {
+      setBreakStartTime(null);
+    }
+  }, [isBreak, today?.break_start_time, breakStartTime]);
+
+  // Live timer effect
+  useEffect(() => {
+    let interval = null;
+    if (today && !today.check_out_time) {
+      interval = setInterval(() => {
+        const now = new Date();
+        const checkInTime = new Date(today.check_in_time);
+        const totalElapsed = Math.floor((now - checkInTime) / 1000);
+
+        const pastBreakSeconds = (today.break_minutes || 0) * 60;
+        const currentBreakSeconds = isBreak ?
+          Math.floor((now - (breakStartTime || new Date(today.break_start_time || now))) / 1000) : 0;
+        const totalBreakSeconds = pastBreakSeconds + (isBreak ? currentBreakSeconds : 0);
+
+        setWorkingSeconds(Math.max(0, totalElapsed - totalBreakSeconds));
+        setBreakSeconds(isBreak ? Math.max(0, currentBreakSeconds) : 0);
+      }, 1000);
+    } else {
+      setWorkingSeconds(0);
+      setBreakSeconds(0);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [today, isBreak, breakStartTime]);
 
   // ── Called when user clicks ✓ Check In ──────────────────────
   const handleCheckIn = () => {
@@ -231,17 +282,19 @@ export default function AttendancePage() {
     setBreakLoading(true);
     setError('');
     try {
-      if (activeBreak) await endBreak();
-      else await startBreak();
+      if (activeBreak) {
+        await endBreak();
+        setBreakStartTime(null);
+      } else {
+        await startBreak();
+        setBreakStartTime(new Date());
+      }
     } catch (err) {
       setError(err.message || 'Break action failed.');
     } finally {
       setBreakLoading(false);
     }
   };
-
-  const today    = todayRecord;
-  const isBreak  = activeBreak;
 
   const statusLabel = !today           ? 'Not Checked In'
     : isBreak                          ? 'On Break'
@@ -322,6 +375,26 @@ export default function AttendancePage() {
           </div>
         </div>
 
+        {/* Live Timer */}
+        {today && !today.check_out_time && (
+          <div className="attend-live-timer">
+            <div className="timer-section">
+              <div className="timer-label">Working Time</div>
+              <div className="timer-display timer-working">
+                {formatTime(workingSeconds)}
+              </div>
+            </div>
+            {isBreak && (
+              <div className="timer-section">
+                <div className="timer-label">Break Time</div>
+                <div className="timer-display timer-break">
+                  {formatTime(breakSeconds)}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Hours chips */}
         {today && (
           <div className="attend-hours-row">
@@ -356,7 +429,7 @@ export default function AttendancePage() {
               <line x1="10" y1="1" x2="10" y2="4"/>
               <line x1="14" y1="1" x2="14" y2="4"/>
             </svg>
-            <span>You are currently on a <strong>break</strong>. First 80 minutes are free.</span>
+            <span>You are currently on a <strong>break</strong></span>
           </div>
         )}
 

@@ -70,7 +70,7 @@ function LeaveCard({ leave, onApprove, onReject, isCeo, currentUserId }) {
 
 export default function LeavePage() {
   const { currentUser, leaveList, fetchLeaves, applyLeave, approveLeave, rejectLeave, cancelLeave } = useApp();
-  const isCeo = currentUser?.role === 'ceo';
+  const isAdminOrCeo = ['admin', 'ceo'].includes(currentUser?.role);
   const isEmployee = currentUser?.role === 'employee';
 
   const [showForm, setShowForm] = useState(false);
@@ -137,9 +137,9 @@ export default function LeavePage() {
     <div className="page animate-fadeup">
       <div className="page-header">
         <div>
-          <h2 className="page-title">{isCeo ? 'Leave Approvals' : isEmployee ? 'My Leaves' : 'Leave Management'}</h2>
+          <h2 className="page-title">{isAdminOrCeo ? 'Leave Approvals' : isEmployee ? 'My Leaves' : 'Leave Management'}</h2>
           <p className="page-sub">
-            {isCeo ? `${pendingCount} request${pendingCount !== 1 ? 's' : ''} awaiting your approval`
+            {isAdminOrCeo ? `${pendingCount} request${pendingCount !== 1 ? 's' : ''} awaiting your approval`
               : isEmployee ? 'Apply and track your leave requests'
               : 'Monitor employee leave requests'}
           </p>
@@ -167,7 +167,7 @@ export default function LeavePage() {
         </div>
       )}
 
-      {isCeo && pendingCount > 0 && (
+      {isAdminOrCeo && pendingCount > 0 && (
         <div className="leave-ceo-banner">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
           <div><strong>{pendingCount} pending leave request{pendingCount !== 1 ? 's' : ''}</strong> require{pendingCount === 1 ? 's' : ''} your approval.</div>
@@ -237,7 +237,7 @@ export default function LeavePage() {
               leave={leave}
               onApprove={handleApprove}
               onReject={handleReject}
-              isCeo={isCeo}
+              isCeo={isAdminOrCeo}
               currentUserId={currentUser?.id}
             />
           ))
