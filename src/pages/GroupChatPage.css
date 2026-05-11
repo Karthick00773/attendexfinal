@@ -91,8 +91,14 @@
   margin-bottom: 8px;
   animation: fadeUp 0.3s cubic-bezier(.22,1,.36,1) both;
 }
-.chat-msg-me { flex-direction: row-reverse; }
-.chat-msg-them { flex-direction: row; }
+.chat-msg-me {
+  flex-direction: row-reverse;
+  justify-content: flex-end;
+}
+.chat-msg-them {
+  flex-direction: row;
+  justify-content: flex-start;
+}
 .chat-msg-avatar { flex-shrink: 0; }
 
 .chat-bubble-group {

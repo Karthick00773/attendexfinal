@@ -146,13 +146,22 @@ export function AppProvider({ children }) {
   const startBreak = async () => {
     const data = await api.attendance.startBreak();
     setActiveBreak(true);
+    if (data.attendance) {
+      setTodayRecord(data.attendance);
+    } else {
+      await fetchTodayAttendance();
+    }
     return data;
   };
 
   const endBreak = async () => {
     const data = await api.attendance.endBreak();
     setActiveBreak(false);
-    if (data.attendance) setTodayRecord(data.attendance);
+    if (data.attendance) {
+      setTodayRecord(data.attendance);
+    } else {
+      await fetchTodayAttendance();
+    }
     return data;
   };
 

@@ -3,7 +3,22 @@ import { useApp } from '../context/AppContext';
 
 import './AttendancePage.css';
 
-function formatHrs(h) { return h != null ? Number(h).toFixed(2) + 'h' : '—'; }
+function formatHrs(h) {
+  if (h == null) return '—';
+  const value = Number(h);
+  if (Number.isNaN(value)) return '—';
+  return value.toFixed(2) + 'h';
+}
+
+function formatMinutesAsHours(minutes) {
+  if (minutes == null) return '—';
+  const value = Number(minutes);
+  if (Number.isNaN(value)) return '—';
+  if (value >= 60) {
+    return (value / 60).toFixed(2) + 'h';
+  }
+  return value + 'm';
+}
 
 // Format seconds to HH:MM:SS
 function formatTime(seconds) {
@@ -289,6 +304,7 @@ export default function AttendancePage() {
         await startBreak();
         setBreakStartTime(new Date());
       }
+      await fetchTodayAttendance();
     } catch (err) {
       setError(err.message || 'Break action failed.');
     } finally {
@@ -413,7 +429,7 @@ export default function AttendancePage() {
             {today.break_minutes > 0 && (
               <div className="attend-hour-chip" style={{ background: '#fef3c7' }}>
                 <span>Break</span>
-                <strong style={{ color: '#d97706' }}>{today.break_minutes}m</strong>
+                <strong style={{ color: '#d97706' }}>{formatMinutesAsHours(today.break_minutes)}</strong>
               </div>
             )}
           </div>
@@ -639,6 +655,12 @@ export default function AttendancePage() {
                         <span>Total</span>
                         <strong style={{ color: 'var(--green)' }}>{formatHrs(r.total_hours)}</strong>
                       </div>
+                      {r.break_minutes > 0 && (
+                        <div className="history-hour-item" style={{ marginTop: 8 }}>
+                          <span>Break</span>
+                          <strong style={{ color: 'var(--orange)' }}>{formatMinutesAsHours(r.break_minutes)}</strong>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
