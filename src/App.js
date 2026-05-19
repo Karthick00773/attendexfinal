@@ -203,7 +203,7 @@ function useScreenshotCapture(userRole) {
     } else if (saved === 'granted') {
       startCapturing();
     }
-  }, [userRole]);
+  }, [userRole, startCapturing]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Cleanup on unmount
   useEffect(() => {
