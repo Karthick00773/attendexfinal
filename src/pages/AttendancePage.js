@@ -20,23 +20,21 @@ function formatMinutesAsHours(minutes) {
   return value + 'm';
 }
 
-// Format seconds to HH:MM:SS
 function formatTime(seconds) {
-  const hrs = Math.floor(seconds / 3600);
+  const hrs  = Math.floor(seconds / 3600);
   const mins = Math.floor((seconds % 3600) / 60);
   const secs = seconds % 60;
-  return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  return `${hrs.toString().padStart(2,'0')}:${mins.toString().padStart(2,'0')}:${secs.toString().padStart(2,'0')}`;
 }
 
 // ─────────────────────────────────────────────────────────────
-//  Inline camera capture — no style changes, just a clean
-//  overlay that fits the existing design language.
+//  Camera capture overlay
 // ─────────────────────────────────────────────────────────────
 function PhotoCapture({ title, onConfirm, onCancel }) {
   const videoRef  = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
-  const [snapshot, setSnapshot] = useState(null); // data-URL preview
+  const [snapshot, setSnapshot] = useState(null);
   const [camErr,   setCamErr]   = useState('');
   const [ready,    setReady]    = useState(false);
 
@@ -93,7 +91,6 @@ function PhotoCapture({ title, onConfirm, onCancel }) {
       padding: 16,
     }}>
       <div className="card" style={{ width: '100%', maxWidth: 440, padding: 24 }}>
-        {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
           <div>
             <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text)', margin: 0 }}>{title}</h3>
@@ -101,17 +98,13 @@ function PhotoCapture({ title, onConfirm, onCancel }) {
               {snapshot ? 'Photo captured. Confirm or retake.' : 'Position your face in the frame and take a photo.'}
             </p>
           </div>
-          <button
-            onClick={onCancel}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', padding: 4 }}
-          >
+          <button onClick={onCancel} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', padding: 4 }}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
               <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
             </svg>
           </button>
         </div>
 
-        {/* Camera / preview */}
         <div style={{ borderRadius: 12, overflow: 'hidden', background: '#111', marginBottom: 16, aspectRatio: '4/3', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           {camErr ? (
             <p style={{ color: '#ef4444', fontSize: '0.85rem', textAlign: 'center', padding: 20 }}>{camErr}</p>
@@ -123,15 +116,9 @@ function PhotoCapture({ title, onConfirm, onCancel }) {
         </div>
         <canvas ref={canvasRef} style={{ display: 'none' }} />
 
-        {/* Actions */}
         <div style={{ display: 'flex', gap: 10 }}>
           {!snapshot && !camErr && (
-            <button
-              className="btn btn-primary"
-              style={{ flex: 1, justifyContent: 'center' }}
-              onClick={snap}
-              disabled={!ready}
-            >
+            <button className="btn btn-primary" style={{ flex: 1, justifyContent: 'center' }} onClick={snap} disabled={!ready}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
                 <circle cx="12" cy="13" r="4"/>
@@ -156,9 +143,7 @@ function PhotoCapture({ title, onConfirm, onCancel }) {
             </>
           )}
           {camErr && (
-            <button className="btn btn-outline" style={{ flex: 1, justifyContent: 'center' }} onClick={onCancel}>
-              Close
-            </button>
+            <button className="btn btn-outline" style={{ flex: 1, justifyContent: 'center' }} onClick={onCancel}>Close</button>
           )}
         </div>
       </div>
@@ -167,8 +152,7 @@ function PhotoCapture({ title, onConfirm, onCancel }) {
 }
 
 // ─────────────────────────────────────────────────────────────
-//  Main Attendance Page — original JSX preserved exactly,
-//  only the button logic updated to capture photo + GPS.
+//  Main Attendance Page
 // ─────────────────────────────────────────────────────────────
 export default function AttendancePage() {
   const {
@@ -176,23 +160,23 @@ export default function AttendancePage() {
     todayRecord, fetchTodayAttendance,
     attendanceHistory, fetchAttendanceHistory,
     monthlySummary, fetchMonthlySummary,
-    activeBreak,
+    activeBreak, 
     checkIn, checkOut, startBreak, endBreak,
   } = useApp();
 
-  const [checkingIn,  setCheckingIn]  = useState(false);
-  const [checkingOut, setCheckingOut] = useState(false);
+  const [checkingIn,   setCheckingIn]   = useState(false);
+  const [checkingOut,  setCheckingOut]  = useState(false);
   const [breakLoading, setBreakLoading] = useState(false);
   const [msg,   setMsg]   = useState('');
   const [error, setError] = useState('');
 
-  // Live timer states
   const [workingSeconds, setWorkingSeconds] = useState(0);
-  const [breakSeconds, setBreakSeconds] = useState(0);
+  const [breakSeconds,   setBreakSeconds]   = useState(0);
   const [breakStartTime, setBreakStartTime] = useState(null);
 
   // camera: null | 'checkin' | 'checkout'
   const [camera, setCamera] = useState(null);
+  const cameraActionRef = useRef(null); // track which action triggered camera
 
   const showAttendanceDetails = Boolean(
     currentUser?.role && !['admin', 'ceo'].includes(currentUser.role)
@@ -206,61 +190,65 @@ export default function AttendancePage() {
     }
   }, [fetchTodayAttendance, fetchAttendanceHistory, fetchMonthlySummary, showAttendanceDetails]);
 
-  const today = todayRecord;
-  const isBreak = activeBreak || Boolean(today?.break_start_time);
+  const today   = todayRecord;
+  // ── FIX: derive isBreak from todayRecord directly, not activeBreak alone ──
+  // activeBreak can be stale after page refresh; todayRecord is always fresh.
+  const isBreak = activeBreak || Boolean(today?.break_start_time && !today?.break_end_time);
 
   useEffect(() => {
-    if (isBreak && today?.break_start_time && !breakStartTime) {
+    if (isBreak && today?.break_start_time) {
       setBreakStartTime(new Date(today.break_start_time));
     }
     if (!isBreak) {
       setBreakStartTime(null);
+      setBreakSeconds(0);
     }
-  }, [isBreak, today?.break_start_time, breakStartTime]);
+  }, [isBreak, today?.break_start_time]);
 
-  // Live timer effect
+  // Live timer
   useEffect(() => {
     let interval = null;
     if (today && !today.check_out_time) {
       interval = setInterval(() => {
-        const now = new Date();
+        const now         = new Date();
         const checkInTime = new Date(today.check_in_time);
         const totalElapsed = Math.floor((now - checkInTime) / 1000);
 
-        const pastBreakSeconds = (today.break_minutes || 0) * 60;
-        const currentBreakSeconds = isBreak ?
-          Math.floor((now - (breakStartTime || new Date(today.break_start_time || now))) / 1000) : 0;
-        const totalBreakSeconds = pastBreakSeconds + (isBreak ? currentBreakSeconds : 0);
+        const pastBreakSeconds    = (today.break_minutes || 0) * 60;
+        const currentBreakSeconds = isBreak && breakStartTime
+          ? Math.floor((now - breakStartTime) / 1000)
+          : 0;
+        const totalBreakSeconds = pastBreakSeconds + currentBreakSeconds;
 
         setWorkingSeconds(Math.max(0, totalElapsed - totalBreakSeconds));
-        setBreakSeconds(isBreak ? Math.max(0, currentBreakSeconds) : 0);
+        setBreakSeconds(Math.max(0, currentBreakSeconds));
       }, 1000);
     } else {
       setWorkingSeconds(0);
       setBreakSeconds(0);
     }
-    return () => {
-      if (interval) clearInterval(interval);
-    };
+    return () => { if (interval) clearInterval(interval); };
   }, [today, isBreak, breakStartTime]);
 
-  // ── Called when user clicks ✓ Check In ──────────────────────
+  // ── Check In / Out ──────────────────────────────────────────
   const handleCheckIn = () => {
     setError('');
+    cameraActionRef.current = 'checkin';
     setCamera('checkin');
   };
 
-  // ── Called when user clicks ← Check Out ─────────────────────
   const handleCheckOut = () => {
     setError('');
+    cameraActionRef.current = 'checkout';
     setCamera('checkout');
   };
 
-  // ── Called after photo confirmed in camera overlay ───────────
   const handlePhotoConfirmed = async (file) => {
+    const action = cameraActionRef.current;
     setCamera(null);
+    cameraActionRef.current = null;
 
-    if (camera === 'checkin' || file._action === 'checkin') {
+    if (action === 'checkin') {
       setCheckingIn(true);
       setMsg('Getting your location…');
       try {
@@ -289,24 +277,33 @@ export default function AttendancePage() {
     }
   };
 
-  // Attach the action type onto the file so handlePhotoConfirmed knows
-  const handleCheckinPhoto  = (file) => { file._action = 'checkin';  handlePhotoConfirmed(file); };
-  const handleCheckoutPhoto = (file) => { file._action = 'checkout'; handlePhotoConfirmed(file); };
-
+  // ── Break — FIXED ───────────────────────────────────────────
   const handleBreak = async () => {
     setBreakLoading(true);
     setError('');
     try {
-      if (activeBreak) {
+      if (isBreak) {
+        // Resume work — end the break
         await endBreak();
         setBreakStartTime(null);
+        setBreakSeconds(0);
       } else {
+        // Start break
         await startBreak();
         setBreakStartTime(new Date());
       }
+      // Always refresh after break action to get latest state
       await fetchTodayAttendance();
     } catch (err) {
-      setError(err.message || 'Break action failed.');
+      // Show a friendly message instead of raw error
+      const msg = err?.message || '';
+      if (msg.toLowerCase().includes('fetch') || msg.toLowerCase().includes('network')) {
+        setError('Network error. Please check your connection and try again.');
+      } else if (msg.toLowerCase().includes('break')) {
+        setError(msg);
+      } else {
+        setError('Could not update break status. Please try again.');
+      }
     } finally {
       setBreakLoading(false);
     }
@@ -328,23 +325,15 @@ export default function AttendancePage() {
   return (
     <div className="page animate-fadeup">
 
-      {/* ── Camera overlay (renders on top, no layout shift) ── */}
+      {/* Camera overlay */}
       {camera === 'checkin' && (
-        <PhotoCapture
-          title="Check-In Photo"
-          onConfirm={handleCheckinPhoto}
-          onCancel={() => setCamera(null)}
-        />
+        <PhotoCapture title="Check-In Photo" onConfirm={handlePhotoConfirmed} onCancel={() => setCamera(null)} />
       )}
       {camera === 'checkout' && (
-        <PhotoCapture
-          title="Check-Out Photo"
-          onConfirm={handleCheckoutPhoto}
-          onCancel={() => setCamera(null)}
-        />
+        <PhotoCapture title="Check-Out Photo" onConfirm={handlePhotoConfirmed} onCancel={() => setCamera(null)} />
       )}
 
-      {/* ── Page header ── */}
+      {/* Page header */}
       <div className="page-header">
         <div>
           <h2 className="page-title">Attendance</h2>
@@ -355,7 +344,7 @@ export default function AttendancePage() {
         </span>
       </div>
 
-      {/* ── Check-in / out card ── */}
+      {/* Check-in / out card */}
       <div className="card attend-main-card">
         <div className="attend-header">
           <div className="attend-avatar avatar avatar-xl">{currentUser?.avatar_initials}</div>
@@ -396,16 +385,12 @@ export default function AttendancePage() {
           <div className="attend-live-timer">
             <div className="timer-section">
               <div className="timer-label">Working Time</div>
-              <div className="timer-display timer-working">
-                {formatTime(workingSeconds)}
-              </div>
+              <div className="timer-display timer-working">{formatTime(workingSeconds)}</div>
             </div>
             {isBreak && (
               <div className="timer-section">
                 <div className="timer-label">Break Time</div>
-                <div className="timer-display timer-break">
-                  {formatTime(breakSeconds)}
-                </div>
+                <div className="timer-display timer-break">{formatTime(breakSeconds)}</div>
               </div>
             )}
           </div>
@@ -449,18 +434,13 @@ export default function AttendancePage() {
           </div>
         )}
 
-        {/* Status messages */}
         {msg   && <p className="gps-msg">{msg}</p>}
         {error && <p className="gps-msg" style={{ color: 'var(--red)' }}>{error}</p>}
 
-        {/* Action buttons — original labels, photo capture triggered on click */}
+        {/* Action buttons */}
         <div className="attend-actions">
           {!today && (
-            <button
-              className="btn btn-primary btn-lg attend-btn"
-              onClick={handleCheckIn}
-              disabled={checkingIn}
-            >
+            <button className="btn btn-primary btn-lg attend-btn" onClick={handleCheckIn} disabled={checkingIn}>
               {checkingIn ? (
                 <svg className="spin-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
@@ -482,28 +462,23 @@ export default function AttendancePage() {
                 onClick={handleBreak}
                 disabled={breakLoading}
               >
-                {isBreak ? (
-                  <>
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <polygon points="5 3 19 12 5 21 5 3"/>
-                    </svg>
-                    Resume Work
-                  </>
+                {breakLoading ? (
+                  <svg className="spin-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+                  </svg>
+                ) : isBreak ? (
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polygon points="5 3 19 12 5 21 5 3"/>
+                  </svg>
                 ) : (
-                  <>
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>
-                    </svg>
-                    Take Break
-                  </>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>
+                  </svg>
                 )}
+                {breakLoading ? 'Please wait…' : isBreak ? 'Resume Work' : 'Take Break'}
               </button>
 
-              <button
-                className="btn btn-danger btn-lg attend-btn"
-                onClick={handleCheckOut}
-                disabled={checkingOut}
-              >
+              <button className="btn btn-danger btn-lg attend-btn" onClick={handleCheckOut} disabled={checkingOut}>
                 {checkingOut ? (
                   <svg className="spin-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
@@ -532,7 +507,7 @@ export default function AttendancePage() {
         </div>
       </div>
 
-      {/* ── Monthly summary cards ── */}
+      {/* Monthly summary */}
       {monthlySummary && showAttendanceDetails && (
         <div className="grid-3" style={{ marginTop: 24, marginBottom: 24 }}>
           <div className="card attend-stat-mini">
@@ -545,7 +520,6 @@ export default function AttendancePage() {
             </div>
             <span className="attend-stat-sub">Target: 180h</span>
           </div>
-
           <div className="card attend-stat-mini">
             <span className="attend-stat-label">Overtime (Month)</span>
             <span className="attend-stat-val" style={{ color: 'var(--orange)' }}>
@@ -556,7 +530,6 @@ export default function AttendancePage() {
             </div>
             <span className="attend-stat-sub">Max tracked: 40h</span>
           </div>
-
           <div className="card attend-stat-mini">
             <span className="attend-stat-label">Days Present (Month)</span>
             <span className="attend-stat-val" style={{ color: 'var(--green)' }}>
@@ -572,6 +545,7 @@ export default function AttendancePage() {
         </div>
       )}
 
+      {/* Attendance history */}
       {showAttendanceDetails && (
         <div className="card" style={{ padding: 24 }}>
           <h3 className="card-title">Attendance History</h3>
@@ -601,12 +575,8 @@ export default function AttendancePage() {
                       <span className="history-time-val">{fmtTime(r.check_in_time)}</span>
                       {r.check_in_photo_url ? (
                         <a href={r.check_in_photo_url} target="_blank" rel="noreferrer">
-                          <img
-                            src={r.check_in_photo_url}
-                            alt="check-in"
-                            className="history-photo"
-                            style={{ width: 48, height: 48, borderRadius: 6, objectFit: 'cover', marginTop: 4 }}
-                          />
+                          <img src={r.check_in_photo_url} alt="check-in" className="history-photo"
+                            style={{ width: 48, height: 48, borderRadius: 6, objectFit: 'cover', marginTop: 4 }} />
                         </a>
                       ) : (
                         <div className="history-photo-placeholder">
@@ -624,12 +594,8 @@ export default function AttendancePage() {
                       <span className="history-time-val">{fmtTime(r.check_out_time)}</span>
                       {r.check_out_photo_url ? (
                         <a href={r.check_out_photo_url} target="_blank" rel="noreferrer">
-                          <img
-                            src={r.check_out_photo_url}
-                            alt="check-out"
-                            className="history-photo"
-                            style={{ width: 48, height: 48, borderRadius: 6, objectFit: 'cover', marginTop: 4 }}
-                          />
+                          <img src={r.check_out_photo_url} alt="check-out" className="history-photo"
+                            style={{ width: 48, height: 48, borderRadius: 6, objectFit: 'cover', marginTop: 4 }} />
                         </a>
                       ) : (
                         <div className="history-photo-placeholder">
