@@ -23,6 +23,56 @@ async function request(method, path, body) {
   if (body !== undefined) opts.body = JSON.stringify(body);
   const res  = await fetch(`${BASE}${path}`, opts);
   const data = await res.json().catch(() => ({}));
+
+  // Handle 401 responses with special contract from backend
+  if (res.status === 401) {
+    // If token expired, attempt silent refresh then retry once
+    if (data && data.expired) {
+      try {
+        const refreshToken = localStorage.getItem('attendx_refresh');
+        if (refreshToken) {
+          // Try to refresh access token
+          const refreshRes = await fetch(`${BASE}/api/auth/refresh`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ refresh_token: refreshToken }),
+          });
+          const refreshData = await refreshRes.json().catch(() => ({}));
+          if (refreshRes.ok && refreshData.access_token) {
+            localStorage.setItem('attendx_token', refreshData.access_token);
+            if (refreshData.refresh_token) localStorage.setItem('attendx_refresh', refreshData.refresh_token);
+            // Retry original request with new token
+            const retryToken = getToken();
+            const retryHeaders = { 'Content-Type': 'application/json' };
+            if (retryToken) retryHeaders['Authorization'] = `Bearer ${retryToken}`;
+            const retryOpts = { method, headers: retryHeaders };
+            if (body !== undefined) retryOpts.body = JSON.stringify(body);
+            const retryRes = await fetch(`${BASE}${path}`, retryOpts);
+            const retryData = await retryRes.json().catch(() => ({}));
+            if (!retryRes.ok) {
+              const err = new Error(retryData.error || `HTTP ${retryRes.status}`);
+              err.status = retryRes.status;
+              err.data = retryData;
+              throw err;
+            }
+            return retryData;
+          }
+        }
+      } catch (e) {
+        // fallthrough to final 401 handling below
+      }
+    }
+
+    // All other 401s or failed refresh: clear tokens and redirect to login
+    localStorage.removeItem('attendx_token');
+    localStorage.removeItem('attendx_refresh');
+    try { window.location.href = '/login'; } catch (_) {}
+    const err = new Error(data.error || 'Unauthorized');
+    err.status = 401;
+    err.data = data;
+    throw err;
+  }
+
   if (!res.ok) {
     const err = new Error(data.error || `HTTP ${res.status}`);
     err.status = res.status;
@@ -59,6 +109,7 @@ export const auth = USE_MOCK ? mockApi.auth : {
   logout:        ()                => request('POST',  '/api/auth/logout'),
   me:            ()                => request('GET',   '/api/auth/me'),
   resetPassword: (new_password)   => request('PATCH', '/api/auth/reset-password',  { new_password }),
+  refresh:       (refresh_token)  => request('POST',  '/api/auth/refresh',       { refresh_token }),
 };
 
 // ── Users ─────────────────────────────────────────────────────

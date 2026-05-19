@@ -235,6 +235,19 @@ export const mockApi = {
       if (user) user.password = new_password;
       return { success: true };
     },
+    refresh: async ({ refresh_token } = {}) => {
+      await delay(300);
+      const uid = parseInt(localStorage.getItem('attendx_mock_user_id'));
+      const user = MOCK_USERS.find(u => u.id === uid);
+      if (!user) {
+        const err = Object.assign(new Error('Invalid token.'), { status: 401 });
+        throw err;
+      }
+      // In mock, ignore provided refresh_token and return fresh tokens
+      const newToken = `mock-token-${user.id}-${Date.now()}`;
+      localStorage.setItem('attendx_token', newToken);
+      return { access_token: newToken, refresh_token: `mock-refresh-${user.id}` };
+    },
   },
 
   // Users

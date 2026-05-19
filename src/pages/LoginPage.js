@@ -109,7 +109,6 @@ export default function LoginPage() {
   /* ── Main login screen ── */
   return (
     <div className="login-page">
-      {/* 768px sliding container */}
       <div className={`login-container${isActive ? ' active' : ''}`}>
 
         {/* ── Forgot Password form (left slot, hidden by default) ── */}
@@ -117,7 +116,7 @@ export default function LoginPage() {
           <form onSubmit={handleForgotPassword}>
             <h1>Forgot Password?</h1>
             <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 16 }}>Enter your email address and we'll send you a link to reset your password.</p>
-            <input type="email" placeholder="Enter your email" 
+            <input type="email" placeholder="Enter your email"
               value={forgotEmail} onChange={e => setForgotEmail(e.target.value)} required />
             {forgotSuccess && <div className="login-success" style={{ width: '100%', marginTop: 6, background: '#dcfce7', borderColor: '#86efac', color: '#16a34a' }}>{forgotSuccess}</div>}
             {forgotError && <div className="login-error" style={{ width: '100%', marginTop: 6 }}>{forgotError}</div>}
@@ -131,13 +130,6 @@ export default function LoginPage() {
         <div className="form-container sign-in">
           <form onSubmit={handleLogin}>
             <h1>Sign In</h1>
-
-            <div className="login-social-icons">
-              <button type="button" onClick={() => {}}><i className="fa-brands fa-google-plus-g" /></button>
-              <button type="button" onClick={() => {}}><i className="fa-brands fa-facebook-f" /></button>
-              <button type="button" onClick={() => {}}><i className="fa-brands fa-github" /></button>
-              <button type="button" onClick={() => {}}><i className="fa-brands fa-linkedin-in" /></button>
-            </div>
 
             <span>Use your email &amp; password to sign in</span>
             <input type="email" placeholder="Email"
@@ -176,13 +168,11 @@ export default function LoginPage() {
         {/* ── Sliding toggle overlay ── */}
         <div className="toggle-container">
           <div className="toggle">
-            {/* shown when active (forgot password mode) — left panel */}
             <div className="toggle-panel toggle-left">
               <h1>Remember Your Password?</h1>
               <p>Go back to sign in with your credentials</p>
               <button className="hidden" onClick={() => setIsActive(false)}>Sign In</button>
             </div>
-            {/* shown by default — right panel */}
             <div className="toggle-panel toggle-right">
               <h1>Forgot Your Password?</h1>
               <p>Get help resetting your password in just a few steps</p>

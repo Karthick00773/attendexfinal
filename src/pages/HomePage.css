@@ -48,9 +48,12 @@
   box-shadow: var(--shadow-lg);
 }
 .stat-icon {
-  width: 48px; height: 48px;
+  width: 48px;
+  height: 48px;
   border-radius: 14px;
-  display: flex; align-items: center; justify-content: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
 }
 .stat-value {
@@ -93,10 +96,18 @@
   justify-content: space-between;
   margin-bottom: 16px;
 }
-.card-head .card-title { margin-bottom: 0; }
+.card-head .card-title {
+  margin-bottom: 0;
+}
 
-.home-progress-card { padding: 24px; }
-.progress-rows { display: flex; flex-direction: column; gap: 20px; }
+.home-progress-card {
+  padding: 24px;
+}
+.progress-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
 .progress-row-header {
   display: flex;
   justify-content: space-between;
@@ -106,9 +117,20 @@
   font-weight: 500;
 }
 
-.home-notif-card { padding: 24px; }
-.notif-list { display: flex; flex-direction: column; gap: 2px; }
-.empty-msg { color: var(--muted); font-size: 0.88rem; text-align: center; padding: 20px 0; }
+.home-notif-card {
+  padding: 24px;
+}
+.notif-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.empty-msg {
+  color: var(--muted);
+  font-size: 0.88rem;
+  text-align: center;
+  padding: 20px 0;
+}
 .notif-item {
   display: flex;
   align-items: center;
@@ -118,26 +140,51 @@
   transition: background 0.15s;
   position: relative;
 }
-.notif-item:hover { background: var(--soft-purple); }
-.notif-unread { background: var(--soft-purple); }
+.notif-item:hover {
+  background: var(--soft-purple);
+}
+.notif-unread {
+  background: var(--soft-purple);
+}
 .notif-dot-icon {
-  width: 32px; height: 32px;
+  width: 32px;
+  height: 32px;
   border-radius: 10px;
-  display: flex; align-items: center; justify-content: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
 }
-.notif-body { flex: 1; }
-.notif-text { font-size: 0.85rem; color: var(--text2); font-weight: 500; line-height: 1.4; }
-.notif-time { font-size: 0.75rem; color: var(--muted); }
+.notif-body {
+  flex: 1;
+}
+.notif-text {
+  font-size: 0.85rem;
+  color: var(--text2);
+  font-weight: 500;
+  line-height: 1.4;
+}
+.notif-time {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
 .notif-unread-dot {
-  width: 8px; height: 8px;
+  width: 8px;
+  height: 8px;
   background: var(--accent);
   border-radius: 50%;
   flex-shrink: 0;
 }
 
-.home-team-card { padding: 24px; grid-column: 1 / -1; }
-.team-attend-list { display: flex; flex-direction: column; gap: 10px; }
+.home-team-card {
+  padding: 24px;
+  grid-column: 1 / -1;
+}
+.team-attend-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
 .mini-attend-card {
   display: flex;
   align-items: center;
@@ -147,13 +194,33 @@
   border: 1px solid var(--border);
   transition: border-color 0.2s, transform 0.2s;
 }
-.mini-attend-card:hover { border-color: var(--border2); transform: translateX(4px); }
-.mini-attend-info { flex: 1; }
-.mini-attend-name { display: block; font-size: 0.9rem; font-weight: 600; color: var(--text); }
-.mini-attend-role { display: block; font-size: 0.78rem; color: var(--muted); }
+.mini-attend-card:hover {
+  border-color: var(--border2);
+  transform: translateX(4px);
+}
+.mini-attend-info {
+  flex: 1;
+}
+.mini-attend-name {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text);
+}
+.mini-attend-role {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
 
-.home-quick-card { padding: 24px; }
-.quick-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.home-quick-card {
+  padding: 24px;
+}
+.quick-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
 .quick-action-btn {
   display: flex;
   align-items: center;
@@ -177,10 +244,23 @@
   transform: translateY(-2px);
 }
 .quick-action-icon {
-  width: 36px; height: 36px;
+  width: 36px;
+  height: 36px;
   border-radius: 10px;
-  display: flex; align-items: center; justify-content: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
+}
+
+/* ── Screenshot popup animations ── */
+@keyframes popIn {
+  from { opacity: 0; transform: scale(0.85); }
+  to   { opacity: 1; transform: scale(1); }
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.4; transform: scale(1.6); }
 }
 
 @media (max-width: 900px) {
