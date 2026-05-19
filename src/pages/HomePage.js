@@ -14,7 +14,7 @@
 
 import { useState } from 'react';
 
-export function ScreenshotStatusBadge({ isCapturing, lastCaptured, captureCount }) {
+export default function ScreenshotStatusBadge({ isCapturing, lastCaptured, captureCount }) {
   const [showTooltip, setShowTooltip] = useState(false);
 
   const formatTime = (date) => {
