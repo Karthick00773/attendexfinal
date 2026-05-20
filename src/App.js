@@ -12,8 +12,22 @@ import TasksPage from './pages/TasksPage';
 import Sidebar from './components/Sidebar';
 
 // ── Config ────────────────────────────────────────────────────
-const CAPTURE_INTERVAL_MS = 5 * 60 * 1000; // every 5 minutes
+const CAPTURE_INTERVAL_MS = 5 * 60 * 1000;
 const STORAGE_KEY = 'screenshot_permission';
+const BACKEND_URL = process.env.REACT_APP_API_URL || '/api';
+
+// ── Keep-alive ping (prevents Render free tier cold starts) ───
+// Pings backend every 4 minutes so it never sleeps mid-session.
+function useKeepAlive() {
+  useEffect(() => {
+    const ping = () => {
+      fetch(`${BACKEND_URL}/health`, { method: 'GET' }).catch(() => {});
+    };
+    ping();
+    const interval = setInterval(ping, 4 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
+}
 
 // ── Screenshot Permission Popup ───────────────────────────────
 function ScreenshotPermissionPopup({ onAllow, onDeny }) {
@@ -34,7 +48,6 @@ function ScreenshotPermissionPopup({ onAllow, onDeny }) {
         display: 'flex', flexDirection: 'column', alignItems: 'center',
         animation: 'popIn 0.3s cubic-bezier(.34,1.56,.64,1)',
       }}>
-        {/* Icon */}
         <div style={{
           width: 72, height: 72, borderRadius: 20,
           background: 'var(--lavender, #f0ecff)',
@@ -49,7 +62,6 @@ function ScreenshotPermissionPopup({ onAllow, onDeny }) {
             <line x1="12" y1="17" x2="12" y2="21" />
           </svg>
         </div>
-
         <h2 style={{ fontSize: '1.35rem', fontWeight: 700, color: 'var(--text, #1a1a2e)', margin: '0 0 10px', textAlign: 'center' }}>
           Screen Monitoring
         </h2>
@@ -57,8 +69,6 @@ function ScreenshotPermissionPopup({ onAllow, onDeny }) {
           Your organization requires periodic screen captures during work hours.
           Screenshots are taken every <strong>5 minutes</strong> and are only visible to your admin.
         </p>
-
-        {/* Info box */}
         <div style={{
           width: '100%', background: 'var(--soft-purple, #f8f6ff)',
           borderRadius: 14, padding: '12px 18px', marginBottom: 24,
@@ -76,27 +86,20 @@ function ScreenshotPermissionPopup({ onAllow, onDeny }) {
             </div>
           ))}
         </div>
-
-        {/* Buttons */}
         <div style={{ display: 'flex', gap: 12, width: '100%', marginBottom: 14 }}>
           <button onClick={onDeny} style={{
             flex: 1, padding: '12px 0', borderRadius: 12,
             border: '1.5px solid var(--border, #ddd)',
             background: 'transparent', color: 'var(--text2, #555)',
             fontWeight: 600, fontSize: 14, cursor: 'pointer',
-          }}>
-            Not Now
-          </button>
+          }}>Not Now</button>
           <button onClick={onAllow} style={{
             flex: 2, padding: '12px 0', borderRadius: 12,
             border: 'none', background: 'var(--accent, #6c47ff)',
             color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer',
             boxShadow: '0 4px 16px rgba(108,71,255,0.3)',
-          }}>
-            Allow & Continue
-          </button>
+          }}>Allow & Continue</button>
         </div>
-
         <p style={{ fontSize: 11.5, color: 'var(--muted, #aaa)', textAlign: 'center', lineHeight: 1.5, margin: 0 }}>
           You can stop sharing at any time from your browser's screen share indicator.
         </p>
@@ -109,11 +112,11 @@ function ScreenshotPermissionPopup({ onAllow, onDeny }) {
 function useScreenshotCapture(userRole) {
   const [showPopup, setShowPopup] = useState(false);
   const [isCapturing, setIsCapturing] = useState(false);
-  const streamRef = useRef(null);
+  const streamRef   = useRef(null);
   const intervalRef = useRef(null);
 
   const getAuthToken = async () => {
-    const res = await fetch('/api/imagekit/auth', {
+    const res = await fetch(`${BACKEND_URL}/imagekit/auth`, {
       headers: { Authorization: `Bearer ${localStorage.getItem('attendx_token')}` },
     });
     if (!res.ok) throw new Error('Failed to get ImageKit auth');
@@ -121,7 +124,7 @@ function useScreenshotCapture(userRole) {
   };
 
   const saveToDB = async (url) => {
-    await fetch('/api/screenshots', {
+    await fetch(`${BACKEND_URL}/screenshots`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -139,10 +142,13 @@ function useScreenshotCapture(userRole) {
       video.play();
       video.onloadedmetadata = () => {
         const canvas = document.createElement('canvas');
-        canvas.width = video.videoWidth || 1280;
+        canvas.width  = video.videoWidth  || 1280;
         canvas.height = video.videoHeight || 720;
         canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
-        canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('toBlob failed')), 'image/jpeg', 0.8);
+        canvas.toBlob(
+          blob => blob ? resolve(blob) : reject(new Error('toBlob failed')),
+          'image/jpeg', 0.8
+        );
       };
       video.onerror = reject;
     });
@@ -166,11 +172,10 @@ function useScreenshotCapture(userRole) {
       });
       const uploadData = await uploadRes.json();
       await saveToDB(uploadData.url);
-      console.info('[Screenshot] Saved:', uploadData.url);
     } catch (err) {
       console.error('[Screenshot] Failed:', err);
     }
-  }, [captureFrame]);
+  }, [captureFrame]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const startCapturing = useCallback(async () => {
     try {
@@ -194,7 +199,6 @@ function useScreenshotCapture(userRole) {
     }
   }, [doCapture]);
 
-  // Show popup only for employees, only once
   useEffect(() => {
     if (userRole !== 'employee') return;
     const saved = localStorage.getItem(STORAGE_KEY);
@@ -205,7 +209,6 @@ function useScreenshotCapture(userRole) {
     }
   }, [userRole, startCapturing]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       clearInterval(intervalRef.current);
@@ -266,7 +269,6 @@ function ProtectedLayout({ children }) {
   );
 }
 
-// ── App Routes (screenshot hook lives here, has access to user) ──
 function AppRoutes() {
   const { currentUser, authLoading } = useApp();
   const { showPopup, handleAllow, handleDeny } = useScreenshotCapture(currentUser?.role);
@@ -275,11 +277,9 @@ function AppRoutes() {
 
   return (
     <>
-      {/* Popup only shows for employees, only once */}
       {showPopup && currentUser && (
         <ScreenshotPermissionPopup onAllow={handleAllow} onDeny={handleDeny} />
       )}
-
       <Routes>
         <Route path="/login" element={currentUser ? <Navigate to="/" replace /> : <LoginPage />} />
         <Route path="/" element={<ProtectedLayout><HomePage /></ProtectedLayout>} />
@@ -297,6 +297,7 @@ function AppRoutes() {
 
 // ── Root ──────────────────────────────────────────────────────
 export default function App() {
+  useKeepAlive();
   return (
     <AppProvider>
       <BrowserRouter>
