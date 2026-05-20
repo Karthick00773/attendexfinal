@@ -160,7 +160,8 @@ export default function AttendancePage() {
     todayRecord, fetchTodayAttendance,
     attendanceHistory, fetchAttendanceHistory,
     monthlySummary, fetchMonthlySummary,
-    activeBreak, 
+    // NOTE: activeBreak is intentionally NOT used for isBreak derivation —
+    // it can be stale after page refresh. todayRecord is always fresh.
     checkIn, checkOut, startBreak, endBreak,
   } = useApp();
 
@@ -176,7 +177,7 @@ export default function AttendancePage() {
 
   // camera: null | 'checkin' | 'checkout'
   const [camera, setCamera] = useState(null);
-  const cameraActionRef = useRef(null); // track which action triggered camera
+  const cameraActionRef = useRef(null);
 
   const showAttendanceDetails = Boolean(
     currentUser?.role && !['admin', 'ceo'].includes(currentUser.role)
@@ -190,14 +191,18 @@ export default function AttendancePage() {
     }
   }, [fetchTodayAttendance, fetchAttendanceHistory, fetchMonthlySummary, showAttendanceDetails]);
 
-  const today   = todayRecord;
-  // ── FIX: derive isBreak from todayRecord directly, not activeBreak alone ──
-  // activeBreak can be stale after page refresh; todayRecord is always fresh.
-  const isBreak = activeBreak || Boolean(today?.break_start_time && !today?.break_end_time);
+  const today = todayRecord;
 
+  // ── FIX 1: Derive isBreak from todayRecord ONLY ──────────────
+  // Never use activeBreak here — it can be stale after page refresh
+  // or after a failed endBreak(). todayRecord is always the source of truth.
+  const isBreak = Boolean(today?.break_start_time && !today?.break_end_time);
+
+  // ── FIX 2: Sync breakStartTime with a guard to avoid resetting a running timer ──
   useEffect(() => {
     if (isBreak && today?.break_start_time) {
-      setBreakStartTime(new Date(today.break_start_time));
+      // Only set if not already tracking — prevents stomping a live timer on re-renders
+      setBreakStartTime(prev => prev ?? new Date(today.break_start_time));
     }
     if (!isBreak) {
       setBreakStartTime(null);
@@ -277,7 +282,7 @@ export default function AttendancePage() {
     }
   };
 
-  // ── Break — FIXED ───────────────────────────────────────────
+  // ── FIX 3: Break handler — correctly sequenced, no race conditions ──
   const handleBreak = async () => {
     setBreakLoading(true);
     setError('');
@@ -285,22 +290,34 @@ export default function AttendancePage() {
       if (isBreak) {
         // Resume work — end the break
         await endBreak();
+        // Clear local timer state immediately on success,
+        // before fetch so the timer stops right away
         setBreakStartTime(null);
         setBreakSeconds(0);
       } else {
         // Start break
         await startBreak();
+        // Set local timer start immediately on success
         setBreakStartTime(new Date());
       }
-      // Always refresh after break action to get latest state
+      // Refresh from server ONLY on success — this re-derives isBreak
+      // from fresh todayRecord, which is now the definitive state
       await fetchTodayAttendance();
     } catch (err) {
-      // Show a friendly message instead of raw error
-      const msg = err?.message || '';
-      if (msg.toLowerCase().includes('fetch') || msg.toLowerCase().includes('network')) {
+      const raw = err?.message || '';
+      const lower = raw.toLowerCase();
+
+      if (lower.includes('fetch') || lower.includes('network')) {
+        // Network error — server state unknown, force a refresh to resync
         setError('Network error. Please check your connection and try again.');
-      } else if (msg.toLowerCase().includes('break')) {
-        setError(msg);
+        try { await fetchTodayAttendance(); } catch (_) { /* ignore secondary fetch error */ }
+      } else if (lower.includes('already')) {
+        // "already on break" or "already working" — state was already correct on server.
+        // Resync silently so UI matches server without showing a confusing error.
+        try { await fetchTodayAttendance(); } catch (_) { /* ignore */ }
+        // Don't show an error — the user's action was a no-op, not a failure
+      } else if (lower.includes('break')) {
+        setError(raw);
       } else {
         setError('Could not update break status. Please try again.');
       }
