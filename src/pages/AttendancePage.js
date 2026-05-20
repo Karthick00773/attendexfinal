@@ -160,8 +160,6 @@ export default function AttendancePage() {
     todayRecord, fetchTodayAttendance,
     attendanceHistory, fetchAttendanceHistory,
     monthlySummary, fetchMonthlySummary,
-    // NOTE: activeBreak is intentionally NOT used for isBreak derivation —
-    // it can be stale after page refresh. todayRecord is always fresh.
     checkIn, checkOut, startBreak, endBreak,
   } = useApp();
 
@@ -173,6 +171,10 @@ export default function AttendancePage() {
 
   const [workingSeconds, setWorkingSeconds] = useState(0);
   const [breakSeconds,   setBreakSeconds]   = useState(0);
+
+  // breakStartTime tracks the START of the CURRENT active break segment only.
+  // It is set when a break begins and cleared when it ends.
+  // Past breaks are already baked into todayRecord.break_minutes by the backend.
   const [breakStartTime, setBreakStartTime] = useState(null);
 
   // camera: null | 'checkin' | 'checkout'
@@ -193,55 +195,65 @@ export default function AttendancePage() {
 
   const today = todayRecord;
 
-  // ── FIX 1: Derive isBreak from todayRecord ONLY ──────────────
-  // Never use activeBreak here — it can be stale after page refresh
-  // or after a failed endBreak(). todayRecord is always the source of truth.
+  // ── isBreak is derived purely from todayRecord ───────────────
+  // break_start_time is set when break starts, break_end_time is set when
+  // break ends. If start is set but end is not, user is on break.
+  // This works correctly after page refresh, multiple breaks, and failed calls.
   const isBreak = Boolean(today?.break_start_time && !today?.break_end_time);
 
-  // ── FIX 2: Sync breakStartTime with a guard to avoid resetting a running timer ──
+  // ── Sync breakStartTime local timer with todayRecord ─────────
+  // When todayRecord says we're on break, start the local live timer.
+  // When todayRecord says break ended, clear it.
+  // The ?? guard prevents resetting a running timer on every re-render.
   useEffect(() => {
     if (isBreak && today?.break_start_time) {
-      // Only set if not already tracking — prevents stomping a live timer on re-renders
       setBreakStartTime(prev => prev ?? new Date(today.break_start_time));
-    }
-    if (!isBreak) {
+    } else {
       setBreakStartTime(null);
       setBreakSeconds(0);
     }
   }, [isBreak, today?.break_start_time]);
 
-  // Live timer
+  // ── Live working + break timer ───────────────────────────────
   useEffect(() => {
-    let interval = null;
-    if (today && !today.check_out_time) {
-      interval = setInterval(() => {
-        const now         = new Date();
-        const checkInTime = new Date(today.check_in_time);
-        const totalElapsed = Math.floor((now - checkInTime) / 1000);
-
-        const pastBreakSeconds    = (today.break_minutes || 0) * 60;
-        const currentBreakSeconds = isBreak && breakStartTime
-          ? Math.floor((now - breakStartTime) / 1000)
-          : 0;
-        const totalBreakSeconds = pastBreakSeconds + currentBreakSeconds;
-
-        setWorkingSeconds(Math.max(0, totalElapsed - totalBreakSeconds));
-        setBreakSeconds(Math.max(0, currentBreakSeconds));
-      }, 1000);
-    } else {
+    if (!today || today.check_out_time) {
       setWorkingSeconds(0);
       setBreakSeconds(0);
+      return;
     }
-    return () => { if (interval) clearInterval(interval); };
+
+    const tick = () => {
+      const now          = new Date();
+      const checkInTime  = new Date(today.check_in_time);
+      const totalElapsed = Math.floor((now - checkInTime) / 1000);
+
+      // Past completed breaks (already summed by backend into break_minutes)
+      const pastBreakSecs = (today.break_minutes || 0) * 60;
+
+      // Current ongoing break segment (live ticking)
+      const currentBreakSecs = isBreak && breakStartTime
+        ? Math.floor((now - breakStartTime) / 1000)
+        : 0;
+
+      const totalBreakSecs = pastBreakSecs + currentBreakSecs;
+
+      setWorkingSeconds(Math.max(0, totalElapsed - totalBreakSecs));
+      setBreakSeconds(Math.max(0, currentBreakSecs));
+    };
+
+    tick(); // run immediately so there's no 1s blank on mount
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
   }, [today, isBreak, breakStartTime]);
 
-  // ── Check In / Out ──────────────────────────────────────────
+  // ── Check In ─────────────────────────────────────────────────
   const handleCheckIn = () => {
     setError('');
     cameraActionRef.current = 'checkin';
     setCamera('checkin');
   };
 
+  // ── Check Out ────────────────────────────────────────────────
   const handleCheckOut = () => {
     setError('');
     cameraActionRef.current = 'checkout';
@@ -282,58 +294,67 @@ export default function AttendancePage() {
     }
   };
 
-  // ── FIX 3: Break handler — correctly sequenced, no race conditions ──
+  // ── Break ────────────────────────────────────────────────────
+  // Flow:
+  //   Take Break  → startBreak() → backend sets break_start_time, clears break_end_time
+  //                              → context updates todayRecord immediately from response
+  //                              → fetchTodayAttendance() confirms server state
+  //                              → isBreak becomes true → timer starts
+  //
+  //   Resume Work → endBreak()   → backend sets break_end_time, adds mins to break_minutes
+  //                              → context updates todayRecord immediately from response
+  //                              → fetchTodayAttendance() confirms server state
+  //                              → isBreak becomes false → timer stops, working time continues
+  //
+  //   Multiple breaks: each cycle repeats the same flow. break_minutes accumulates
+  //   on the backend. The live timer always adds pastBreakSecs + currentBreakSecs.
   const handleBreak = async () => {
     setBreakLoading(true);
     setError('');
     try {
       if (isBreak) {
-        // Resume work — end the break
+        // ── Resume work ──
         await endBreak();
-        // Clear local timer state immediately on success,
-        // before fetch so the timer stops right away
+        // Clear local break timer immediately — don't wait for fetch
         setBreakStartTime(null);
         setBreakSeconds(0);
       } else {
-        // Start break
+        // ── Start break ──
         await startBreak();
-        // Set local timer start immediately on success
+        // Set local break timer immediately — don't wait for fetch
         setBreakStartTime(new Date());
       }
-      // Refresh from server ONLY on success — this re-derives isBreak
-      // from fresh todayRecord, which is now the definitive state
+      // One single fetch to confirm server state and update todayRecord
+      // (break_minutes, break_start_time, break_end_time all refreshed)
       await fetchTodayAttendance();
     } catch (err) {
-      const raw = err?.message || '';
+      const raw   = err?.message || '';
       const lower = raw.toLowerCase();
 
-      if (lower.includes('fetch') || lower.includes('network')) {
-        // Network error — server state unknown, force a refresh to resync
+      if (lower.includes('network') || lower.includes('fetch')) {
+        // Network failed — we don't know the server state, force a resync
         setError('Network error. Please check your connection and try again.');
-        try { await fetchTodayAttendance(); } catch (_) { /* ignore secondary fetch error */ }
+        try { await fetchTodayAttendance(); } catch (_) {}
       } else if (lower.includes('already')) {
-        // "already on break" or "already working" — state was already correct on server.
-        // Resync silently so UI matches server without showing a confusing error.
-        try { await fetchTodayAttendance(); } catch (_) { /* ignore */ }
-        // Don't show an error — the user's action was a no-op, not a failure
-      } else if (lower.includes('break')) {
-        setError(raw);
+        // Server says state was already what we wanted — just resync silently
+        // This handles edge cases like double-tap or stale UI
+        try { await fetchTodayAttendance(); } catch (_) {}
       } else {
-        setError('Could not update break status. Please try again.');
+        setError(raw || 'Could not update break status. Please try again.');
       }
     } finally {
       setBreakLoading(false);
     }
   };
 
-  const statusLabel = !today           ? 'Not Checked In'
-    : isBreak                          ? 'On Break'
-    : today.check_out_time             ? 'Checked Out'
+  const statusLabel = !today          ? 'Not Checked In'
+    : isBreak                         ? 'On Break'
+    : today.check_out_time            ? 'Checked Out'
     : 'Present';
 
-  const statusColor = !today           ? 'badge-red'
-    : isBreak                          ? 'badge-orange'
-    : today.check_out_time             ? 'badge-blue'
+  const statusColor = !today          ? 'badge-red'
+    : isBreak                         ? 'badge-orange'
+    : today.check_out_time            ? 'badge-blue'
     : 'badge-green';
 
   const fmtTime = (iso) =>

@@ -10,10 +10,15 @@ export function AppProvider({ children }) {
   const [forceReset, setForceReset]     = useState(false);
 
   // Attendance
-  const [todayRecord, setTodayRecord]           = useState(null);
+  const [todayRecord, setTodayRecord]             = useState(null);
   const [attendanceHistory, setAttendanceHistory] = useState([]);
-  const [monthlySummary, setMonthlySummary]     = useState(null);
-  const [activeBreak, setActiveBreak]           = useState(false);
+  const [monthlySummary, setMonthlySummary]       = useState(null);
+  // NOTE: activeBreak state is REMOVED.
+  // Break status is always derived from todayRecord:
+  //   isBreak = Boolean(todayRecord?.break_start_time && !todayRecord?.break_end_time)
+  // This is the only reliable source of truth — it survives page refreshes
+  // and never goes stale. Using a separate boolean caused double-fetch races
+  // and "already in work" errors when the context state lagged behind.
   const [allEmployeesToday, setAllEmployeesToday] = useState([]);
 
   // Dashboard
@@ -21,11 +26,11 @@ export function AppProvider({ children }) {
   const [adminOverview, setAdminOverview]   = useState(null);
 
   // Chat / Leaves / Notifications / Tasks
-  const [messages, setMessages]     = useState([]);
-  const [leaveList, setLeaveList]   = useState([]);
-  const [notifList, setNotifList]   = useState([]);
+  const [messages, setMessages]       = useState([]);
+  const [leaveList, setLeaveList]     = useState([]);
+  const [notifList, setNotifList]     = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [taskList, setTaskList]     = useState([]);
+  const [taskList, setTaskList]       = useState([]);
 
   // ── Restore session on mount ──────────────────────────────────
   useEffect(() => {
@@ -94,7 +99,6 @@ export function AppProvider({ children }) {
 
   const fetchMonthlySummary = useCallback(async (month, userId) => {
     const data = await api.attendance.getSummary(month, userId);
-    // Backend returns { month, summary: { normal_hours, overtime_hours, total_hours, present_days, absent_days, leave_days } }
     setMonthlySummary(data.summary);
     return data.summary;
   }, []);
@@ -105,11 +109,10 @@ export function AppProvider({ children }) {
     return data.employees;
   }, []);
 
-  // checkIn: get GPS → upload photo to ImageKit → POST JSON to backend
   const checkIn = async (photoFile) => {
-    const coords   = await getCoords();
-    const lat      = coords?.latitude  ?? null;
-    const lng      = coords?.longitude ?? null;
+    const coords = await getCoords();
+    const lat    = coords?.latitude  ?? null;
+    const lng    = coords?.longitude ?? null;
 
     if (!lat || !lng) throw new Error('GPS coordinates are required. Please allow location access.');
 
@@ -124,11 +127,10 @@ export function AppProvider({ children }) {
     return data;
   };
 
-  // checkOut: same flow
   const checkOut = async (photoFile) => {
-    const coords   = await getCoords();
-    const lat      = coords?.latitude  ?? null;
-    const lng      = coords?.longitude ?? null;
+    const coords = await getCoords();
+    const lat    = coords?.latitude  ?? null;
+    const lng    = coords?.longitude ?? null;
 
     if (!lat || !lng) throw new Error('GPS coordinates are required. Please allow location access.');
 
@@ -143,24 +145,26 @@ export function AppProvider({ children }) {
     return data;
   };
 
+  // FIX: startBreak and endBreak only call the API and update todayRecord
+  // from the response. They do NOT call fetchTodayAttendance() internally.
+  // The page calls fetchTodayAttendance() once after success — one fetch,
+  // no race condition, no double request to the backend.
   const startBreak = async () => {
     const data = await api.attendance.startBreak();
-    setActiveBreak(true);
+    // Immediately update todayRecord from response if available
+    // so isBreak re-derives to true right away
     if (data.attendance) {
       setTodayRecord(data.attendance);
-    } else {
-      await fetchTodayAttendance();
     }
     return data;
   };
 
   const endBreak = async () => {
     const data = await api.attendance.endBreak();
-    setActiveBreak(false);
+    // Immediately update todayRecord from response if available
+    // so isBreak re-derives to false right away
     if (data.attendance) {
       setTodayRecord(data.attendance);
-    } else {
-      await fetchTodayAttendance();
     }
     return data;
   };
@@ -312,7 +316,8 @@ export function AppProvider({ children }) {
     <AppContext.Provider value={{
       currentUser, authLoading, forceReset,
       login, logout, resetPassword,
-      todayRecord, attendanceHistory, monthlySummary, activeBreak,
+      // activeBreak is gone — consumers derive isBreak from todayRecord directly
+      todayRecord, attendanceHistory, monthlySummary,
       fetchTodayAttendance, fetchAttendanceHistory, fetchMonthlySummary,
       checkIn, checkOut, startBreak, endBreak, overrideAttendance,
       allEmployeesToday, fetchAllEmployeesToday,
