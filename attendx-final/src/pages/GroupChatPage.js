@@ -4,7 +4,7 @@ import './GroupChatPage.css';
 
 const roleColor = { employee: '#a855f7', admin: '#3b82f6', ceo: '#f59e0b' };
 
-// Common emoji reactions11111111111111111111111111111111111111
+// Common emoji reactions
 const EMOJI_LIST = ['👍', '❤️', '😂', '😮', '😢', '🔥', '👏', '🎉'];
 
 // ── Avatar pill ───────────────────────────────────────────────
