@@ -1,0 +1,231 @@
+.profile-hero {
+  border-radius: var(--radius-lg);
+  margin-bottom: 24px;
+  overflow: hidden;
+  position: relative;
+  box-shadow: var(--shadow-lg);
+}
+.profile-hero-bg {
+  position: absolute;
+  inset: 0;
+  background: url("data:image/svg+xml,%3Csvg width='80' height='80' viewBox='0 0 80 80' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none'%3E%3Ccircle cx='40' cy='40' r='20' stroke='%23ffffff' stroke-opacity='0.06' stroke-width='1'/%3E%3Ccircle cx='40' cy='40' r='35' stroke='%23ffffff' stroke-opacity='0.04' stroke-width='1'/%3E%3C/g%3E%3C/svg%3E") repeat;
+}
+.profile-hero-content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 36px 32px;
+  flex-wrap: wrap;
+}
+.profile-avatar-ring {
+  padding: 4px;
+  background: rgba(255,255,255,0.25);
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.profile-avatar {
+  background: rgba(255,255,255,0.2) !important;
+  color: #fff !important;
+  font-size: 2.2rem !important;
+  font-weight: 800 !important;
+  border: 3px solid rgba(255,255,255,0.4) !important;
+  backdrop-filter: blur(8px);
+}
+.profile-hero-info { flex: 1; min-width: 200px; }
+.profile-name {
+  font-family: var(--font-display);
+  font-size: 2rem;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1.2;
+  margin-bottom: 4px;
+}
+.profile-designation { color: rgba(255,255,255,0.8); font-size: 0.95rem; margin-bottom: 12px; }
+.profile-badges { display: flex; gap: 8px; flex-wrap: wrap; }
+.profile-role-badge {
+  background: rgba(255,255,255,0.2);
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.3);
+  border-radius: 99px;
+  padding: 4px 12px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  backdrop-filter: blur(6px);
+}
+.profile-dept-badge {
+  background: rgba(255,255,255,0.12);
+  color: rgba(255,255,255,0.85);
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 99px;
+  padding: 4px 12px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  backdrop-filter: blur(6px);
+}
+
+.profile-hero-stats {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  background: rgba(255,255,255,0.12);
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 16px;
+  backdrop-filter: blur(8px);
+  overflow: hidden;
+}
+.profile-hero-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 16px 24px;
+  gap: 4px;
+}
+.phs-val { font-family: var(--font-display); font-size: 1.4rem; font-weight: 700; color: #fff; line-height: 1; }
+.phs-label { font-size: 0.68rem; color: rgba(255,255,255,0.7); font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; }
+.phs-divider { width: 1px; background: rgba(255,255,255,0.2); align-self: stretch; }
+
+/* Tabs */
+.profile-tabs {
+  display: flex;
+  gap: 4px;
+  background: var(--soft-purple);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 5px;
+  margin-bottom: 24px;
+  width: fit-content;
+}
+.profile-tab {
+  padding: 9px 22px;
+  border-radius: 9px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--font);
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.profile-tab:hover { color: var(--text); }
+.profile-tab-active {
+  background: #fff;
+  color: var(--accent);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Grid */
+.profile-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+.profile-card { padding: 24px; }
+.profile-card-wide { grid-column: 1 / -1; }
+
+/* Info rows */
+.info-list { display: flex; flex-direction: column; gap: 2px; }
+.info-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 10px;
+  border-radius: 10px;
+  transition: background 0.15s;
+}
+.info-row:hover { background: var(--soft-purple); }
+.info-icon {
+  width: 32px; height: 32px;
+  background: var(--lavender);
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+.info-body { flex: 1; }
+.info-label { display: block; font-size: 0.72rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.info-value { display: block; font-size: 0.92rem; font-weight: 600; color: var(--text); margin-top: 1px; }
+
+/* Leave ring */
+.leave-summary { display: flex; align-items: center; gap: 28px; flex-wrap: wrap; }
+.leave-circle { position: relative; width: 140px; height: 140px; flex-shrink: 0; }
+.leave-ring-svg { width: 100%; height: 100%; }
+.leave-ring-svg circle:last-child { transition: stroke-dashoffset 0.8s cubic-bezier(.22,1,.36,1); }
+.leave-circle-inner {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.leave-circle-val { font-family: var(--font-display); font-size: 2rem; font-weight: 700; color: var(--text); line-height: 1; }
+.leave-circle-sub { font-size: 0.68rem; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; }
+.leave-breakdown { display: flex; flex-direction: column; gap: 14px; flex: 1; }
+.leave-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.88rem;
+  color: var(--text2);
+}
+.leave-item strong { margin-left: auto; font-size: 1rem; color: var(--text); }
+.leave-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+/* Month hours */
+.month-hours-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.month-hour-block { display: flex; flex-direction: column; gap: 6px; }
+.month-hour-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85rem;
+  color: var(--text2);
+  font-weight: 500;
+}
+.month-hour-max { font-size: 0.73rem; color: var(--muted); }
+
+/* Payroll */
+.payroll-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
+  gap: 16px;
+  margin-top: 8px;
+}
+.payroll-block {
+  background: var(--soft-purple);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.payroll-main { background: var(--lavender); border-color: var(--border2); }
+.payroll-earned { background: var(--green-light); border-color: #6ee7b7; }
+.payroll-label { font-size: 0.72rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.payroll-amount { font-family: var(--font-display); font-size: 1.6rem; font-weight: 700; color: var(--accent); line-height: 1.1; }
+.payroll-amount-sm { font-size: 1.2rem; }
+.payroll-note { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
+
+.admin-table { width: 100%; border-collapse: collapse; font-size: 0.87rem; }
+.admin-table th { text-align: left; padding: 10px 12px; font-size: 0.72rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; background: var(--soft-purple); border-bottom: 2px solid var(--border); white-space: nowrap; }
+.admin-table td { padding: 11px 12px; border-bottom: 1px solid var(--border); color: var(--text2); vertical-align: middle; }
+.admin-table tr:last-child td { border-bottom: none; }
+.admin-table tr:hover td { background: var(--soft-purple); }
+
+@media (max-width: 900px) {
+  .profile-grid { grid-template-columns: 1fr; }
+  .profile-card-wide { grid-column: 1; }
+  .payroll-grid { grid-template-columns: 1fr 1fr; }
+  .month-hours-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 600px) {
+  .profile-hero-content { padding: 24px 20px; }
+  .profile-name { font-size: 1.4rem; }
+  .profile-hero-stats { flex-wrap: wrap; gap: 0; }
+  .payroll-grid { grid-template-columns: 1fr 1fr; }
+}
