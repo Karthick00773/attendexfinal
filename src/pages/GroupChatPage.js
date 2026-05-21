@@ -2,26 +2,249 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useApp } from '../context/AppContext';
 import './GroupChatPage.css';
 
-const roleColor = { employee:'#a855f7', admin:'#3b82f6', ceo:'#f59e0b' };
+const roleColor = { employee: '#a855f7', admin: '#3b82f6', ceo: '#f59e0b' };
 
+// Common emoji reactions
+const EMOJI_LIST = ['👍', '❤️', '😂', '😮', '😢', '🔥', '👏', '🎉'];
+
+// ── Avatar pill ───────────────────────────────────────────────
+function Avatar({ user, size = 36 }) {
+  const role   = user?.role || 'employee';
+  const color  = roleColor[role] || '#a855f7';
+  const initials = user?.avatar_initials || '?';
+
+  if (user?.profile_photo_url) {
+    return (
+      <img
+        src={user.profile_photo_url}
+        alt={user?.name || 'User'}
+        className="chat-avatar-pill"
+        style={{ width: size, height: size }}
+      />
+    );
+  }
+  return (
+    <div
+      className="chat-avatar-pill chat-avatar-initials"
+      style={{
+        width: size,
+        height: size,
+        background: `${color}22`,
+        color,
+        fontSize: size * 0.38,
+      }}
+    >
+      {initials}
+    </div>
+  );
+}
+
+// ── Emoji picker ──────────────────────────────────────────────
+function EmojiPicker({ onPick, onClose }) {
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) onClose();
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [onClose]);
+
+  return (
+    <div className="emoji-picker" ref={ref} role="dialog" aria-label="Pick a reaction">
+      {EMOJI_LIST.map(em => (
+        <button
+          key={em}
+          className="emoji-btn"
+          onClick={() => { onPick(em); onClose(); }}
+          aria-label={`React with ${em}`}
+        >
+          {em}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ── Message context menu (long-press / right-click) ───────────
+function MessageMenu({ canDelete, onDelete, onReact, onClose, isMe }) {
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) onClose();
+    };
+    // small delay so the same click that opens doesn't instantly close
+    const t = setTimeout(() => document.addEventListener('mousedown', handler), 50);
+    return () => { clearTimeout(t); document.removeEventListener('mousedown', handler); };
+  }, [onClose]);
+
+  return (
+    <div className={`msg-menu ${isMe ? 'msg-menu--right' : 'msg-menu--left'}`} ref={ref} role="menu">
+      <button className="msg-menu-item" onClick={onReact} role="menuitem">
+        <span>😊</span> React
+      </button>
+      {canDelete && (
+        <button className="msg-menu-item msg-menu-item--danger" onClick={onDelete} role="menuitem">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+          </svg>
+          Delete
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ── Single message bubble ─────────────────────────────────────
+function ChatMessage({ msg, currentUser, isAdminOrCeo, onDelete, onReact }) {
+  const sender    = msg.users || {};
+  const isMe      = msg.user_id === currentUser?.id;
+  const canDelete = isMe || isAdminOrCeo;
+  const role      = sender.role || 'employee';
+  const color     = roleColor[role] || '#a855f7';
+  const name      = sender.name || 'Unknown';
+  const timeStr   = msg.sent_at
+    ? new Date(msg.sent_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })
+    : '';
+
+  const [menuOpen,    setMenuOpen]    = useState(false);
+  const [pickerOpen,  setPickerOpen]  = useState(false);
+  const [longTimer,   setLongTimer]   = useState(null);
+  const [pressing,    setPressing]    = useState(false);
+
+  // Long-press detection (mobile & desktop)
+  const startPress = () => {
+    setPressing(true);
+    const t = setTimeout(() => { setMenuOpen(true); setPressing(false); }, 500);
+    setLongTimer(t);
+  };
+  const cancelPress = () => {
+    setPressing(false);
+    clearTimeout(longTimer);
+  };
+
+  // Right-click on desktop
+  const handleContextMenu = (e) => {
+    e.preventDefault();
+    setMenuOpen(true);
+  };
+
+  const handleDelete = () => {
+    setMenuOpen(false);
+    onDelete(msg.id);
+  };
+
+  const handleReactFromMenu = () => {
+    setMenuOpen(false);
+    setPickerOpen(true);
+  };
+
+  const handlePickEmoji = (emoji) => {
+    onReact(msg.id, emoji);
+    setPickerOpen(false);
+  };
+
+  // Group reactions: { emoji: count }
+  const reactions = msg.reactions || {};
+
+  return (
+    <div className={`chat-msg-wrap ${isMe ? 'chat-msg-me' : 'chat-msg-them'}`}>
+      {/* Avatar — only for other people's messages */}
+      {!isMe && (
+        <Avatar user={sender} size={36} />
+      )}
+
+      <div className="chat-msg-body">
+        {/* Sender name + role badge — only for others */}
+        {!isMe && (
+          <span className="chat-msg-name" style={{ color }}>
+            {name}
+            {role !== 'employee' && (
+              <span className="role-badge" style={{ background: `${color}18`, color }}>
+                {role.toUpperCase()}
+              </span>
+            )}
+          </span>
+        )}
+
+        {/* Bubble */}
+        <div
+          className={`chat-bubble ${isMe ? 'chat-bubble-me' : 'chat-bubble-them'} ${pressing ? 'chat-bubble--pressing' : ''}`}
+          onMouseDown={startPress}
+          onMouseUp={cancelPress}
+          onMouseLeave={cancelPress}
+          onTouchStart={startPress}
+          onTouchEnd={cancelPress}
+          onContextMenu={handleContextMenu}
+        >
+          <span className="chat-bubble-text">{msg.text}</span>
+
+          {/* Context menu */}
+          {menuOpen && (
+            <MessageMenu
+              canDelete={canDelete}
+              onDelete={handleDelete}
+              onReact={handleReactFromMenu}
+              onClose={() => setMenuOpen(false)}
+              isMe={isMe}
+            />
+          )}
+
+          {/* Emoji picker */}
+          {pickerOpen && (
+            <EmojiPicker
+              onPick={handlePickEmoji}
+              onClose={() => setPickerOpen(false)}
+            />
+          )}
+        </div>
+
+        {/* Reaction pills */}
+        {Object.keys(reactions).length > 0 && (
+          <div className={`reaction-row ${isMe ? 'reaction-row--me' : ''}`}>
+            {Object.entries(reactions).map(([emoji, count]) => (
+              <button
+                key={emoji}
+                className="reaction-pill"
+                onClick={() => onReact(msg.id, emoji)}
+                aria-label={`${emoji} ${count}`}
+              >
+                {emoji} <span>{count}</span>
+              </button>
+            ))}
+          </div>
+        )}
+
+        <span className={`chat-time ${isMe ? 'chat-time--me' : ''}`}>{timeStr}</span>
+      </div>
+
+      {/* Avatar — only for MY messages, on the right */}
+      {isMe && (
+        <Avatar user={currentUser} size={36} />
+      )}
+    </div>
+  );
+}
+
+
+// ── Main page ─────────────────────────────────────────────────
 export default function GroupChatPage() {
-  const { currentUser, messages, fetchMessages, sendMessage, deleteMessage } = useApp();
-  const [text, setText]       = useState('');
+  const { currentUser, messages, fetchMessages, sendMessage, deleteMessage, reactToMessage } = useApp();
+  const [text,    setText]    = useState('');
   const [sending, setSending] = useState(false);
-  const [error, setError]     = useState('');
+  const [error,   setError]   = useState('');
   const bottomRef = useRef(null);
   const inputRef  = useRef(null);
   const pollRef   = useRef(null);
 
-  // Initial load
   useEffect(() => { fetchMessages(); }, [fetchMessages]);
 
-  // Auto-scroll on new messages
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior:'smooth' });
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Polling every 5 seconds for real-time feel (backend uses Supabase Realtime on its side)
   const poll = useCallback(async () => {
     try { await fetchMessages(); } catch (_) {}
   }, [fetchMessages]);
@@ -55,7 +278,17 @@ export default function GroupChatPage() {
     try { await deleteMessage(id); } catch (err) { setError(err.message || 'Failed to delete.'); }
   };
 
-  const isAdminOrCeo = ['admin','ceo'].includes(currentUser?.role);
+  // reactToMessage is optional — add it to AppContext if not present yet
+  // It should call: PATCH /api/messages/:id/react  { emoji }
+  const handleReact = async (id, emoji) => {
+    try {
+      if (reactToMessage) await reactToMessage(id, emoji);
+    } catch (err) {
+      setError(err.message || 'Failed to react.');
+    }
+  };
+
+  const isAdminOrCeo = ['admin', 'ceo'].includes(currentUser?.role);
 
   // Group messages by date
   const grouped = messages.reduce((acc, msg) => {
@@ -65,92 +298,78 @@ export default function GroupChatPage() {
     return acc;
   }, {});
 
+  const formatDate = (dateStr) => {
+    if (dateStr === 'today') return 'Today';
+    const d = new Date(dateStr);
+    const today     = new Date();
+    const yesterday = new Date(); yesterday.setDate(today.getDate() - 1);
+    if (d.toDateString() === today.toDateString())     return 'Today';
+    if (d.toDateString() === yesterday.toDateString()) return 'Yesterday';
+    return d.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' });
+  };
+
   return (
     <div className="chat-layout">
+      {/* ── Header ── */}
       <div className="chat-header">
         <div className="chat-header-left">
           <div className="chat-group-icon">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
               <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
             </svg>
           </div>
           <div>
             <h3 className="chat-group-name">Company Group</h3>
-            <p className="chat-group-sub">All members · {messages.length} messages · auto-refreshes every 5s</p>
+            <p className="chat-group-sub">{messages.length} messages · live</p>
           </div>
+        </div>
+        <div className="chat-header-right">
+          <Avatar user={currentUser} size={32} />
+          <span className="chat-header-me">{currentUser?.name?.split(' ')[0]}</span>
         </div>
       </div>
 
-      {error && <div style={{ padding:'8px 16px', background:'#fef2f2', color:'#dc2626', fontSize:'0.85rem' }}>{error}</div>}
+      {/* ── Error banner ── */}
+      {error && (
+        <div className="chat-error" role="alert">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          {error}
+        </div>
+      )}
 
+      {/* ── Messages ── */}
       <div className="chat-messages">
         {Object.entries(grouped).map(([date, msgs]) => (
           <div key={date}>
             <div className="chat-date-divider">
-              <span>
-                {date === 'today'
-                  ? 'Today'
-                  : new Date(date).toLocaleDateString('en-IN', { weekday:'long', day:'numeric', month:'long' })}
-              </span>
+              <span>{formatDate(date)}</span>
             </div>
-            {msgs.map(msg => {
-              // Real backend: msg.users is the joined user object (Supabase select join)
-              const sender    = msg.users || {};
-              const isMe      = msg.user_id === currentUser?.id;
-              const canDelete = isMe || isAdminOrCeo;
-              const avatar    = sender.avatar_initials || '?';
-              const name      = sender.name  || 'Unknown';
-              const role      = sender.role  || 'employee';
-              const timeStr   = msg.sent_at
-                ? new Date(msg.sent_at).toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit', hour12:false })
-                : '';
-
-              return (
-                <div key={msg.id} className={`chat-msg-wrap ${isMe ? 'chat-msg-me' : 'chat-msg-them'}`}>
-                  {!isMe && (
-                    <div className="avatar avatar-sm chat-msg-avatar"
-                      style={{ background:`${roleColor[role]}20`, color:roleColor[role] }}>
-                      {sender.profile_photo_url
-                        ? <img src={sender.profile_photo_url} alt={name} style={{ width:'100%', height:'100%', borderRadius:'50%', objectFit:'cover' }} />
-                        : avatar}
-                    </div>
-                  )}
-                  <div className="chat-msg-body">
-                    {!isMe && (
-                      <span className="chat-msg-name" style={{ color:roleColor[role] }}>
-                        {name}
-                        {role !== 'employee' && (
-                          <span style={{ fontSize:'0.7rem', marginLeft:4, background:`${roleColor[role]}18`, padding:'1px 5px', borderRadius:8 }}>
-                            {role.toUpperCase()}
-                          </span>
-                        )}
-                      </span>
-                    )}
-                    <div className={`chat-bubble ${isMe ? 'chat-bubble-me' : 'chat-bubble-them'}`}>
-                      <span>{msg.text}</span>
-                      {canDelete && (
-                        <button className="chat-delete-btn" onClick={() => handleDelete(msg.id)} title="Delete">
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                          </svg>
-                        </button>
-                      )}
-                    </div>
-                    <span className="chat-time">{timeStr}</span>
-                  </div>
-                </div>
-              );
-            })}
+            {msgs.map(msg => (
+              <ChatMessage
+                key={msg.id}
+                msg={msg}
+                currentUser={currentUser}
+                isAdminOrCeo={isAdminOrCeo}
+                onDelete={handleDelete}
+                onReact={handleReact}
+              />
+            ))}
           </div>
         ))}
+
         {messages.length === 0 && (
-          <p className="empty-msg" style={{ textAlign:'center', padding:32 }}>No messages yet. Say hello! 👋</p>
+          <div className="chat-empty">
+            <div className="chat-empty-icon">💬</div>
+            <p>No messages yet. Say hello!</p>
+          </div>
         )}
         <div ref={bottomRef} />
       </div>
 
+      {/* ── Input bar ── */}
       <div className="chat-input-bar">
+        <Avatar user={currentUser} size={34} />
         <div className="chat-input-wrap">
           <textarea
             ref={inputRef}
@@ -161,21 +380,29 @@ export default function GroupChatPage() {
             onKeyDown={handleKey}
             rows={1}
           />
-          <button type="button" className="btn btn-primary chat-send-btn" onClick={handleSend} disabled={!text.trim() || sending}>
-            {sending ? (
-              <svg className="spin-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
-              </svg>
-            ) : (
-              <>
-                <span>Send</span>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
-                </svg>
-              </>
-            )}
-          </button>
         </div>
+        <button
+          type="button"
+          className="chat-send-btn"
+          onClick={handleSend}
+          disabled={!text.trim() || sending}
+          aria-label="Send message"
+        >
+          {sending ? (
+            <svg className="spin-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+            </svg>
+          ) : (
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+            </svg>
+          )}
+        </button>
+      </div>
+
+      {/* Long-press hint — shown once, fades out */}
+      <div className="chat-hint" aria-hidden="true">
+        Hold a message to delete or react
       </div>
     </div>
   );
