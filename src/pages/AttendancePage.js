@@ -191,6 +191,7 @@ export default function AttendancePage() {
   }, [fetchTodayAttendance, fetchAttendanceHistory, fetchMonthlySummary, showAttendanceDetails]);
 
   const today = todayRecord;
+  console.log('todayRecord:', JSON.stringify(today, null, 2));
 
   // ── isBreak derived ONLY from todayRecord ─────────────────────
   // As per AppContext comment: this is the single source of truth.
@@ -560,6 +561,21 @@ export default function AttendancePage() {
               </button>
             </>
           )}
+          {/* TEMP DEBUG BUTTON */}
+<button onClick={async () => {
+  try {
+    const res = await endBreak();
+    console.log('force endBreak:', res);
+    await fetchTodayAttendance();
+  } catch(e) {
+    console.error('force endBreak error:', e);
+  }
+}} style={{ background: 'red', color: 'white', padding: '8px 16px', borderRadius: 8, border: 'none', cursor: 'pointer' }}>
+  Force End Break (DEBUG)
+</button>
+
+{today?.check_out_time && (
+  <div className="attend-done-msg">
 
           {today?.check_out_time && (
             <div className="attend-done-msg">
