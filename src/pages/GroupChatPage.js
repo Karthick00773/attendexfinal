@@ -4,9 +4,6 @@ import './GroupChatPage.css';
 
 const roleColor = { employee: '#a855f7', admin: '#3b82f6', ceo: '#f59e0b' };
 
-// Common emoji reactions
-const EMOJI_LIST = ['👍', '❤️', '😂', '😮', '😢', '🔥', '👏', '🎉'];
-
 // ── Avatar pill ───────────────────────────────────────────────
 function Avatar({ user, size = 36 }) {
   const role   = user?.role || 'employee';
@@ -39,83 +36,51 @@ function Avatar({ user, size = 36 }) {
   );
 }
 
-// ── Emoji picker ──────────────────────────────────────────────
-function EmojiPicker({ onPick, onClose }) {
+// ── Delete confirm popup (long-press own message only) ────────
+function DeleteMenu({ onDelete, onClose, isMe }) {
   const ref = useRef(null);
 
   useEffect(() => {
     const handler = (e) => {
       if (ref.current && !ref.current.contains(e.target)) onClose();
     };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [onClose]);
-
-  return (
-    <div className="emoji-picker" ref={ref} role="dialog" aria-label="Pick a reaction">
-      {EMOJI_LIST.map(em => (
-        <button
-          key={em}
-          className="emoji-btn"
-          onClick={() => { onPick(em); onClose(); }}
-          aria-label={`React with ${em}`}
-        >
-          {em}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-// ── Message context menu (long-press / right-click) ───────────
-function MessageMenu({ canDelete, onDelete, onReact, onClose, isMe }) {
-  const ref = useRef(null);
-
-  useEffect(() => {
-    const handler = (e) => {
-      if (ref.current && !ref.current.contains(e.target)) onClose();
-    };
-    // small delay so the same click that opens doesn't instantly close
     const t = setTimeout(() => document.addEventListener('mousedown', handler), 50);
     return () => { clearTimeout(t); document.removeEventListener('mousedown', handler); };
   }, [onClose]);
 
   return (
     <div className={`msg-menu ${isMe ? 'msg-menu--right' : 'msg-menu--left'}`} ref={ref} role="menu">
-      <button className="msg-menu-item" onClick={onReact} role="menuitem">
-        <span>😊</span> React
+      <button className="msg-menu-item msg-menu-item--danger" onClick={onDelete} role="menuitem">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+        </svg>
+        Delete message
       </button>
-      {canDelete && (
-        <button className="msg-menu-item msg-menu-item--danger" onClick={onDelete} role="menuitem">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
-          </svg>
-          Delete
-        </button>
-      )}
+      <button className="msg-menu-item" onClick={onClose} role="menuitem">
+        Cancel
+      </button>
     </div>
   );
 }
 
 // ── Single message bubble ─────────────────────────────────────
-function ChatMessage({ msg, currentUser, isAdminOrCeo, onDelete, onReact }) {
-  const sender    = msg.users || {};
-  const isMe      = msg.user_id === currentUser?.id;
-  const canDelete = isMe || isAdminOrCeo;
-  const role      = sender.role || 'employee';
-  const color     = roleColor[role] || '#a855f7';
-  const name      = sender.name || 'Unknown';
-  const timeStr   = msg.sent_at
+function ChatMessage({ msg, currentUser, isAdminOrCeo, onDelete }) {
+  const sender  = msg.users || {};
+  const isMe    = msg.user_id === currentUser?.id;
+  const role    = sender.role || 'employee';
+  const color   = roleColor[role] || '#a855f7';
+  const name    = sender.name || 'Unknown';
+  const timeStr = msg.sent_at
     ? new Date(msg.sent_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })
     : '';
 
-  const [menuOpen,    setMenuOpen]    = useState(false);
-  const [pickerOpen,  setPickerOpen]  = useState(false);
-  const [longTimer,   setLongTimer]   = useState(null);
-  const [pressing,    setPressing]    = useState(false);
+  const [menuOpen,  setMenuOpen]  = useState(false);
+  const [longTimer, setLongTimer] = useState(null);
+  const [pressing,  setPressing]  = useState(false);
 
-  // Long-press detection (mobile & desktop)
+  // Long-press — only open menu on OWN messages
   const startPress = () => {
+    if (!isMe) return;
     setPressing(true);
     const t = setTimeout(() => { setMenuOpen(true); setPressing(false); }, 500);
     setLongTimer(t);
@@ -125,8 +90,9 @@ function ChatMessage({ msg, currentUser, isAdminOrCeo, onDelete, onReact }) {
     clearTimeout(longTimer);
   };
 
-  // Right-click on desktop
+  // Right-click on desktop — own messages only
   const handleContextMenu = (e) => {
+    if (!isMe) return;
     e.preventDefault();
     setMenuOpen(true);
   };
@@ -136,25 +102,11 @@ function ChatMessage({ msg, currentUser, isAdminOrCeo, onDelete, onReact }) {
     onDelete(msg.id);
   };
 
-  const handleReactFromMenu = () => {
-    setMenuOpen(false);
-    setPickerOpen(true);
-  };
-
-  const handlePickEmoji = (emoji) => {
-    onReact(msg.id, emoji);
-    setPickerOpen(false);
-  };
-
-  // Group reactions: { emoji: count }
-  const reactions = msg.reactions || {};
-
   return (
     <div className={`chat-msg-wrap ${isMe ? 'chat-msg-me' : 'chat-msg-them'}`}>
-      {/* Avatar — only for other people's messages */}
-      {!isMe && (
-        <Avatar user={sender} size={36} />
-      )}
+
+      {/* Avatar — only for OTHER people's messages, on the left */}
+      {!isMe && <Avatar user={sender} size={36} />}
 
       <div className="chat-msg-body">
         {/* Sender name + role badge — only for others */}
@@ -181,49 +133,20 @@ function ChatMessage({ msg, currentUser, isAdminOrCeo, onDelete, onReact }) {
         >
           <span className="chat-bubble-text">{msg.text}</span>
 
-          {/* Context menu */}
-          {menuOpen && (
-            <MessageMenu
-              canDelete={canDelete}
+          {/* Delete menu — own messages only */}
+          {menuOpen && isMe && (
+            <DeleteMenu
               onDelete={handleDelete}
-              onReact={handleReactFromMenu}
               onClose={() => setMenuOpen(false)}
               isMe={isMe}
             />
           )}
-
-          {/* Emoji picker */}
-          {pickerOpen && (
-            <EmojiPicker
-              onPick={handlePickEmoji}
-              onClose={() => setPickerOpen(false)}
-            />
-          )}
         </div>
-
-        {/* Reaction pills */}
-        {Object.keys(reactions).length > 0 && (
-          <div className={`reaction-row ${isMe ? 'reaction-row--me' : ''}`}>
-            {Object.entries(reactions).map(([emoji, count]) => (
-              <button
-                key={emoji}
-                className="reaction-pill"
-                onClick={() => onReact(msg.id, emoji)}
-                aria-label={`${emoji} ${count}`}
-              >
-                {emoji} <span>{count}</span>
-              </button>
-            ))}
-          </div>
-        )}
 
         <span className={`chat-time ${isMe ? 'chat-time--me' : ''}`}>{timeStr}</span>
       </div>
 
-      {/* Avatar — only for MY messages, on the right */}
-      {isMe && (
-        <Avatar user={currentUser} size={36} />
-      )}
+      {/* NO avatar on the right — my messages have no avatar */}
     </div>
   );
 }
@@ -231,7 +154,7 @@ function ChatMessage({ msg, currentUser, isAdminOrCeo, onDelete, onReact }) {
 
 // ── Main page ─────────────────────────────────────────────────
 export default function GroupChatPage() {
-  const { currentUser, messages, fetchMessages, sendMessage, deleteMessage, reactToMessage } = useApp();
+  const { currentUser, messages, fetchMessages, sendMessage, deleteMessage } = useApp();
   const [text,    setText]    = useState('');
   const [sending, setSending] = useState(false);
   const [error,   setError]   = useState('');
@@ -276,16 +199,6 @@ export default function GroupChatPage() {
 
   const handleDelete = async (id) => {
     try { await deleteMessage(id); } catch (err) { setError(err.message || 'Failed to delete.'); }
-  };
-
-  // reactToMessage is optional — add it to AppContext if not present yet
-  // It should call: PATCH /api/messages/:id/react  { emoji }
-  const handleReact = async (id, emoji) => {
-    try {
-      if (reactToMessage) await reactToMessage(id, emoji);
-    } catch (err) {
-      setError(err.message || 'Failed to react.');
-    }
   };
 
   const isAdminOrCeo = ['admin', 'ceo'].includes(currentUser?.role);
@@ -352,7 +265,6 @@ export default function GroupChatPage() {
                 currentUser={currentUser}
                 isAdminOrCeo={isAdminOrCeo}
                 onDelete={handleDelete}
-                onReact={handleReact}
               />
             ))}
           </div>
@@ -402,7 +314,7 @@ export default function GroupChatPage() {
 
       {/* Long-press hint — shown once, fades out */}
       <div className="chat-hint" aria-hidden="true">
-        Hold a message to delete or react
+        Hold your message to delete it
       </div>
     </div>
   );
