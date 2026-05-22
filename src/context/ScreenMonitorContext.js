@@ -8,7 +8,7 @@ import React, {
 ───────────────────────────────────────────── */
 const IMAGEKIT_URL_ENDPOINT  = import.meta.env.VITE_IMAGEKIT_URL_ENDPOINT  || 'https://ik.imagekit.io/Nihal1521';
 const IMAGEKIT_PUBLIC_KEY    = import.meta.env.VITE_IMAGEKIT_PUBLIC_KEY    || 'public_3HjwZHol9NlStvSZQI+0ycrfm5U=';
-//const IMAGEKIT_AUTH_ENDPOINT = import.meta.env.VITE_IMAGEKIT_AUTH_ENDPOINT || '/api/imagekit-auth'; // your backend route
+const IMAGEKIT_AUTH_ENDPOINT = import.meta.env.VITE_IMAGEKIT_AUTH_ENDPOINT || '/api/imagekit-auth'; // your backend route
 const SCREENSHOT_FOLDER      = '/screenshots';
 
 /* Screenshot interval: random between 30 – 60 minutes (in ms) */
