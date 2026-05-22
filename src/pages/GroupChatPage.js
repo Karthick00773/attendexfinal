@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import './GroupChatPage.css';
 
@@ -10,7 +10,9 @@ function Avatar({ user, size = 32 }) {
   const color    = roleColor[user?.role] || '#7c3aed';
   const photo    = user?.profile_photo_url || user?.photo_url || null;
   const initials = user?.avatar_initials
-    || (user?.name ? user.name.trim().split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() : '?');
+    || (user?.name
+      ? user.name.trim().split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
+      : '?');
 
   if (photo) {
     return (
@@ -48,7 +50,11 @@ function ContextMenu({ x, y, isMe, onReact, onDelete, onClose }) {
       document.addEventListener('mousedown', click);
       document.addEventListener('keydown', key);
     }, 30);
-    return () => { clearTimeout(t); document.removeEventListener('mousedown', click); document.removeEventListener('keydown', key); };
+    return () => {
+      clearTimeout(t);
+      document.removeEventListener('mousedown', click);
+      document.removeEventListener('keydown', key);
+    };
   }, [onClose]);
 
   const safeX = Math.min(x, window.innerWidth  - 200);
@@ -65,8 +71,11 @@ function ContextMenu({ x, y, isMe, onReact, onDelete, onClose }) {
         <div style={{ fontSize: 11, color: '#999', marginBottom: 6, paddingLeft: 4 }}>React</div>
         <div style={{ display: 'flex', gap: 2 }}>
           {EMOJIS.map(em => (
-            <span key={em} onClick={() => { onReact(em); onClose(); }}
-              style={{ fontSize: 22, cursor: 'pointer', padding: '2px 4px', borderRadius: 6, lineHeight: 1.3 }}>
+            <span
+              key={em}
+              onClick={() => { onReact(em); onClose(); }}
+              style={{ fontSize: 22, cursor: 'pointer', padding: '2px 4px', borderRadius: 6, lineHeight: 1.3 }}
+            >
               {em}
             </span>
           ))}
@@ -92,17 +101,22 @@ function ContextMenu({ x, y, isMe, onReact, onDelete, onClose }) {
 }
 
 // ── Single message bubble ─────────────────────────────────────
-function ChatMessage({ msg, currentUser, onDelete, onReact }) {
-  const sender = msg.users || {};
-  const isMe   = msg.user_id === currentUser?.id;
-  const color  = roleColor[sender.role] || '#7c3aed';
-  const time   = msg.sent_at
+function ChatMessage({ msg, currentUser, usersMap = {}, onDelete, onReact }) {
+  const isMe = msg.user_id === currentUser?.id;
+
+  // Resolve sender: prefer msg.users if it has a name, else fall back to usersMap
+  const sender = (msg.users && msg.users.name)
+    ? msg.users
+    : (usersMap[msg.user_id] || {});
+
+  const color = roleColor[sender.role] || '#7c3aed';
+  const time  = msg.sent_at
     ? new Date(msg.sent_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })
     : '';
 
-  const [ctx,    setCtx]    = useState(null);
-  const longRef             = useRef(null);
-  const closeMenu           = useCallback(() => setCtx(null), []);
+  const [ctx,  setCtx]  = useState(null);
+  const longRef         = useRef(null);
+  const closeMenu       = useCallback(() => setCtx(null), []);
 
   const handleContextMenu = (e) => { e.preventDefault(); setCtx({ x: e.clientX, y: e.clientY }); };
   const handleTouchStart  = (e) => {
@@ -130,7 +144,7 @@ function ChatMessage({ msg, currentUser, onDelete, onReact }) {
           gap: 8,
           maxWidth: '100%',
         }}>
-          {/* Avatar */}
+          {/* Avatar — resolved from sender (which uses usersMap fallback) */}
           <div style={{ flexShrink: 0 }}>
             <Avatar user={isMe ? currentUser : sender} size={32} />
           </div>
@@ -242,6 +256,27 @@ export default function GroupChatPage() {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  // Build a map of user_id → richest user object seen across all messages.
+  // This ensures even messages with sparse/missing `users` data still display
+  // the correct name, photo, and role pulled from other messages by that user.
+  const usersMap = useMemo(() => {
+    const map = {};
+    messages.forEach(m => {
+      if (m.user_id && m.users && m.users.name) {
+        const existing = map[m.user_id];
+        // Keep the version with more fields (richer profile data)
+        if (!existing || Object.keys(m.users).length > Object.keys(existing).length) {
+          map[m.user_id] = m.users;
+        }
+      }
+    });
+    // Always pin the current user so self-messages resolve correctly too
+    if (currentUser?.id) {
+      map[currentUser.id] = currentUser;
+    }
+    return map;
+  }, [messages, currentUser]);
+
   const handleInputChange = (e) => {
     setText(e.target.value);
     e.target.style.height = 'auto';
@@ -338,8 +373,10 @@ export default function GroupChatPage() {
             <div className="chat-date-divider"><span>{formatDate(date)}</span></div>
             {msgs.map(msg => (
               <ChatMessage
-                key={msg.id} msg={msg}
+                key={msg.id}
+                msg={msg}
                 currentUser={currentUser}
+                usersMap={usersMap}
                 onDelete={handleDelete}
                 onReact={handleReact}
               />
