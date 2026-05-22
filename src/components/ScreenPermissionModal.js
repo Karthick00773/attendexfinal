@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { useScreenMonitor } from './context/ScreenMonitorContext';
+import { useScreenMonitor } from '../context/ScreenMonitorContext';
 import './ScreenPermissionModal.css';
 
 export default function ScreenPermissionModal() {
