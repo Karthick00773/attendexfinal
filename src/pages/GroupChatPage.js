@@ -348,7 +348,7 @@ export default function GroupChatPage() {
   const [sending,     setSending]     = useState(false);
   const [error,       setError]       = useState('');
   // typingUsers: [{ id, name, role, avatar_initials, profile_photo_url }]
-  const [typingUsers, setTypingUsers] = useState([]);
+  const [typingUsers] = useState([]);
   // localReactions: { [msgId]: { [emoji]: string[] } }
   const [localReactions, setLocalReactions] = useState({});
 
