@@ -1,7 +1,6 @@
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
-import { useScreenMonitor } from '../context/ScreenMonitorContext';
 import ScreenPermissionModal from '../components/ScreenPermissionModal';
 import './HomePage.css';
 
