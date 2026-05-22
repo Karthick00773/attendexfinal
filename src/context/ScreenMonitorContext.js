@@ -6,7 +6,7 @@ import React, {
 /* ─────────────────────────────────────────────
    CONFIG — swap in your real ImageKit values
 ───────────────────────────────────────────── */
-const IMAGEKIT_URL_ENDPOINT  = import.meta.env.VITE_IMAGEKIT_URL_ENDPOINT  || 'https://ik.imagekit.io/YOUR_ID';
+const IMAGEKIT_URL_ENDPOINT  = import.meta.env.VITE_IMAGEKIT_URL_ENDPOINT  || 'https://ik.imagekit.io/Nihal1521';
 const IMAGEKIT_PUBLIC_KEY    = import.meta.env.VITE_IMAGEKIT_PUBLIC_KEY    || 'public_xxxxxxxxxxxx';
 const IMAGEKIT_AUTH_ENDPOINT = import.meta.env.VITE_IMAGEKIT_AUTH_ENDPOINT || '/api/imagekit-auth'; // your backend route
 const SCREENSHOT_FOLDER      = '/screenshots';
