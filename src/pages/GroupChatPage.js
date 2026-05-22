@@ -315,7 +315,11 @@ export default function GroupChatPage() {
     });
   };
 
-  const mergedMessages = messages.map(m => ({
+  // 1. Create a reversed copy of the messages array so Oldest is at Index 0
+  const chronologicalMessages = [...messages].reverse();
+
+  // 2. Map the reactions onto the correctly ordered array
+  const mergedMessages = chronologicalMessages.map(m => ({
     ...m,
     reactions: { ...(m.reactions || {}), ...(localReactions[m.id] || {}) },
   }));
