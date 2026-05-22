@@ -10,20 +10,27 @@ const roleColor = {
   ceo:      '#d97706',
 };
 
-// ── Avatar ────────────────────────────────────────────────────
+// ── Avatar ─────────────────────────────────────────────────────
+// Handles profile photo OR initials fallback.
+// Checks multiple possible field names from the Supabase join.
 function Avatar({ user, size = 36 }) {
-  const color    = roleColor[user?.role] || '#7c3aed';
-  const initials = user?.avatar_initials || '?';
-  if (user?.profile_photo_url) {
+  const color  = roleColor[user?.role] || '#7c3aed';
+  const photo  = user?.profile_photo_url || user?.photo_url || user?.avatar_url || null;
+  const initials =
+    user?.avatar_initials ||
+    (user?.name ? user.name.trim().split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() : '?');
+
+  if (photo) {
     return (
       <img
-        src={user.profile_photo_url}
+        src={photo}
         alt={user?.name || 'User'}
         style={{
           width: size, height: size,
           borderRadius: '50%',
           objectFit: 'cover',
           flexShrink: 0,
+          border: '1.5px solid ' + color + '55',
         }}
       />
     );
@@ -41,69 +48,52 @@ function Avatar({ user, size = 36 }) {
       justifyContent: 'center',
       flexShrink: 0,
       userSelect: 'none',
+      border: '1.5px solid ' + color + '44',
     }}>
       {initials}
     </div>
   );
 }
 
-// ── Context menu (right-click) ────────────────────────────────
+// ── Context menu (right-click / long-press) ────────────────────
 function ContextMenu({ x, y, isMe, onReact, onDelete, onClose }) {
   const ref = useRef(null);
 
-  // Close on outside click or Escape
   useEffect(() => {
-    const handler = (e) => {
-      if (ref.current && !ref.current.contains(e.target)) onClose();
-    };
-    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    const onClick = (e) => { if (ref.current && !ref.current.contains(e.target)) onClose(); };
+    const onKey   = (e) => { if (e.key === 'Escape') onClose(); };
     const t = setTimeout(() => {
-      document.addEventListener('mousedown', handler);
-      document.addEventListener('keydown', onKey);
+      document.addEventListener('mousedown', onClick);
+      document.addEventListener('keydown',   onKey);
     }, 30);
     return () => {
       clearTimeout(t);
-      document.removeEventListener('mousedown', handler);
-      document.removeEventListener('keydown', onKey);
+      document.removeEventListener('mousedown', onClick);
+      document.removeEventListener('keydown',   onKey);
     };
   }, [onClose]);
 
-  // Keep menu inside viewport
-  const safeX = Math.min(x, window.innerWidth  - 180);
-  const safeY = Math.min(y, window.innerHeight - 160);
+  const safeX = Math.min(x, window.innerWidth  - 185);
+  const safeY = Math.min(y, window.innerHeight - 170);
 
   return (
-    <div
-      ref={ref}
-      role="menu"
-      style={{
-        position: 'fixed',
-        top: safeY,
-        left: safeX,
-        background: 'var(--surface, #fff)',
-        border: '0.5px solid rgba(0,0,0,0.12)',
-        borderRadius: 10,
-        boxShadow: '0 4px 16px rgba(0,0,0,0.14)',
-        zIndex: 9999,
-        minWidth: 170,
-        overflow: 'hidden',
-      }}
-    >
+    <div ref={ref} role="menu" style={{
+      position: 'fixed', top: safeY, left: safeX,
+      background: 'var(--bg, #fff)',
+      border: '0.5px solid rgba(0,0,0,0.14)',
+      borderRadius: 10,
+      boxShadow: '0 4px 20px rgba(0,0,0,0.13)',
+      zIndex: 9999, minWidth: 175, overflow: 'hidden',
+    }}>
       {/* Emoji strip */}
-      <div style={{ display: 'flex', gap: 6, padding: '8px 12px', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 2, padding: '8px 10px' }}>
         {EMOJIS.map(em => (
           <span
             key={em}
             role="button"
-            aria-label={`React with ${em}`}
+            aria-label={'React ' + em}
             onClick={() => { onReact(em); onClose(); }}
-            style={{
-              fontSize: 20,
-              cursor: 'pointer',
-              padding: '2px 4px',
-              borderRadius: 6,
-              lineHeight: 1.3,
-            }}
+            style={{ fontSize: 22, cursor: 'pointer', padding: '2px 5px', borderRadius: 6, lineHeight: 1.3 }}
           >
             {em}
           </span>
@@ -111,72 +101,54 @@ function ContextMenu({ x, y, isMe, onReact, onDelete, onClose }) {
       </div>
       <div style={{ height: '0.5px', background: 'rgba(0,0,0,0.08)' }} />
 
-      {/* React option (always visible) */}
-      <button
-        role="menuitem"
-        onClick={() => {}} // emoji strip above handles it
-        style={menuItemStyle}
-      >
-        😊 React with emoji
-      </button>
-
       {/* Delete — only own messages */}
       {isMe && (
         <button
           role="menuitem"
           onClick={onDelete}
-          style={{ ...menuItemStyle, color: '#ef4444' }}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 8,
+            width: '100%', padding: '10px 16px',
+            background: 'none', border: 'none',
+            textAlign: 'left', fontSize: 13,
+            cursor: 'pointer', color: '#ef4444',
+          }}
         >
-          🗑 Delete message
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="3 6 5 6 21 6"/>
+            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+            <path d="M10 11v6"/><path d="M14 11v6"/>
+            <path d="M9 6V4h6v2"/>
+          </svg>
+          Delete message
         </button>
       )}
     </div>
   );
 }
 
-const menuItemStyle = {
-  display: 'block',
-  width: '100%',
-  padding: '9px 16px',
-  background: 'none',
-  border: 'none',
-  textAlign: 'left',
-  fontSize: 13,
-  cursor: 'pointer',
-  color: 'inherit',
-};
-
-// ── Typing indicator ──────────────────────────────────────────
+// ── Typing indicator ───────────────────────────────────────────
 function TypingIndicator({ typingUsers }) {
   if (!typingUsers || typingUsers.length === 0) return null;
-
-  const names = typingUsers.map(u => u.name).join(', ');
   const label = typingUsers.length === 1
-    ? `${names} is typing…`
-    : `${names} are typing…`;
-
+    ? typingUsers[0].name + ' is typing…'
+    : typingUsers.map(u => u.name).join(', ') + ' are typing…';
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '2px 0 4px', alignSelf: 'flex-start' }}>
-      {typingUsers.slice(0, 1).map(u => <Avatar key={u.id} user={u} size={28} />)}
+      <Avatar user={typingUsers[0]} size={28} />
       <div>
         <div style={{ fontSize: 11, color: roleColor[typingUsers[0]?.role] || '#7c3aed', fontWeight: 500, marginBottom: 3 }}>
           {label}
         </div>
         <div style={{
-          background: 'var(--surface, #fff)',
-          border: '0.5px solid rgba(0,0,0,0.1)',
+          background: '#fff', border: '0.5px solid rgba(0,0,0,0.1)',
           borderRadius: '10px 10px 10px 2px',
-          padding: '8px 12px',
-          display: 'flex',
-          gap: 4,
-          alignItems: 'center',
+          padding: '8px 14px', display: 'flex', gap: 4, alignItems: 'center',
         }}>
           {[0, 1, 2].map(i => (
             <div key={i} style={{
-              width: 6, height: 6,
-              borderRadius: '50%',
-              background: '#aaa',
-              animation: `chatDot 1.2s ${i * 0.2}s infinite`,
+              width: 6, height: 6, borderRadius: '50%', background: '#aaa',
+              animation: 'chatDot 1.2s ' + (i * 0.2) + 's infinite',
             }} />
           ))}
         </div>
@@ -185,179 +157,155 @@ function TypingIndicator({ typingUsers }) {
   );
 }
 
-// ── Single message ────────────────────────────────────────────
+// ── Single message ─────────────────────────────────────────────
 function ChatMessage({ msg, currentUser, onDelete, onReact }) {
+  // msg.users is the joined sender row from Supabase
   const sender = msg.users || {};
   const isMe   = msg.user_id === currentUser?.id;
   const color  = roleColor[sender.role] || '#7c3aed';
-  const name   = sender.name || 'Unknown';
   const time   = msg.sent_at
-    ? new Date(msg.sent_at).toLocaleTimeString('en-IN', {
-        hour: '2-digit', minute: '2-digit', hour12: true,
-      })
+    ? new Date(msg.sent_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })
     : '';
 
-  const [ctx,      setCtx]      = useState(null); // { x, y }
-  const longRef                 = useRef(null);
+  const [ctx,     setCtx]     = useState(null);
+  const longRef               = useRef(null);
 
-  const openMenu = (x, y) => setCtx({ x, y });
+  const openMenu  = (x, y) => setCtx({ x, y });
   const closeMenu = useCallback(() => setCtx(null), []);
 
-  const handleContextMenu = (e) => {
-    e.preventDefault();
-    openMenu(e.clientX, e.clientY);
-  };
+  const handleContextMenu = (e) => { e.preventDefault(); openMenu(e.clientX, e.clientY); };
 
-  // Long press for mobile
   const handleTouchStart = (e) => {
-    const touch = e.touches[0];
-    longRef.current = setTimeout(() => {
-      openMenu(touch.clientX, touch.clientY);
-    }, 500);
+    const t = e.touches[0];
+    longRef.current = setTimeout(() => openMenu(t.clientX, t.clientY), 500);
   };
-  const cancelLong = () => {
-    if (longRef.current) { clearTimeout(longRef.current); longRef.current = null; }
-  };
+  const cancelLong = () => { if (longRef.current) { clearTimeout(longRef.current); longRef.current = null; } };
 
   const reactions = msg.reactions || {};
 
   return (
-    <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: isMe ? 'flex-end' : 'flex-start',
-      marginBottom: 2,
-    }}>
+    <>
+      {/* Outer row: me = right-aligned, them = left-aligned */}
       <div style={{
         display: 'flex',
-        alignItems: 'flex-end',
-        gap: 6,
-        flexDirection: isMe ? 'row-reverse' : 'row',
-        maxWidth: '75%',
+        justifyContent: isMe ? 'flex-end' : 'flex-start',
+        marginBottom: 4,
+        width: '100%',
       }}>
-        <Avatar user={sender} size={28} />
+        <div style={{
+          display: 'flex',
+          alignItems: 'flex-end',
+          gap: 6,
+          flexDirection: isMe ? 'row-reverse' : 'row',
+          maxWidth: '75%',
+        }}>
+          {/* Avatar — always shown for both sides */}
+          <Avatar user={isMe ? currentUser : sender} size={30} />
 
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: isMe ? 'flex-end' : 'flex-start' }}>
-          {/* Sender name — only for others */}
-          {!isMe && (
-            <span style={{ fontSize: 11, fontWeight: 500, color, marginBottom: 3 }}>
-              {name}
-              {sender.role && sender.role !== 'employee' && (
-                <span style={{
-                  marginLeft: 5,
-                  fontSize: 9,
-                  background: color + '18',
-                  color,
-                  padding: '1px 5px',
-                  borderRadius: 4,
-                  fontWeight: 600,
-                  letterSpacing: '0.03em',
-                }}>
-                  {sender.role.toUpperCase()}
-                </span>
-              )}
-            </span>
-          )}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: isMe ? 'flex-end' : 'flex-start' }}>
 
-          {/* Bubble */}
-          <div
-            onContextMenu={handleContextMenu}
-            onTouchStart={handleTouchStart}
-            onTouchEnd={cancelLong}
-            onTouchMove={cancelLong}
-            style={{
-              background: isMe ? '#dcf8c6' : 'var(--surface, #fff)',
-              color: '#111',
-              padding: '7px 10px 5px',
-              borderRadius: isMe
-                ? '10px 10px 2px 10px'
-                : '10px 10px 10px 2px',
-              border: isMe ? 'none' : '0.5px solid rgba(0,0,0,0.1)',
-              cursor: 'pointer',
-              userSelect: 'none',
-              position: 'relative',
-              maxWidth: '100%',
-            }}
-          >
-            <div style={{ fontSize: 13, lineHeight: 1.45, paddingRight: 36, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-              {msg.text}
+            {/* Sender name + role — only for others */}
+            {!isMe && (
+              <span style={{ fontSize: 11, fontWeight: 500, color, marginBottom: 3 }}>
+                {sender.name || 'Unknown'}
+                {sender.role && sender.role !== 'employee' && (
+                  <span style={{
+                    marginLeft: 5, fontSize: 9,
+                    background: color + '18', color,
+                    padding: '1px 5px', borderRadius: 4,
+                    fontWeight: 600, letterSpacing: '0.04em',
+                  }}>
+                    {sender.role.toUpperCase()}
+                  </span>
+                )}
+              </span>
+            )}
+
+            {/* Bubble */}
+            <div
+              onContextMenu={handleContextMenu}
+              onTouchStart={handleTouchStart}
+              onTouchEnd={cancelLong}
+              onTouchMove={cancelLong}
+              style={{
+                background: isMe ? '#dcf8c6' : '#fff',
+                color: '#111',
+                padding: '7px 10px 5px',
+                borderRadius: isMe ? '10px 10px 2px 10px' : '10px 10px 10px 2px',
+                border: isMe ? '0.5px solid #b7f5c8' : '0.5px solid rgba(0,0,0,0.1)',
+                cursor: 'pointer',
+                userSelect: 'none',
+                maxWidth: '100%',
+              }}
+            >
+              <div style={{ fontSize: 13, lineHeight: 1.45, paddingRight: 28, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                {msg.text}
+              </div>
+              <div style={{
+                fontSize: 10, color: '#999',
+                display: 'flex', alignItems: 'center',
+                justifyContent: 'flex-end', gap: 3, marginTop: 2,
+              }}>
+                {time}
+                {isMe && <span style={{ color: '#53bdeb' }}>✓✓</span>}
+              </div>
             </div>
-            <div style={{
-              fontSize: 10,
-              color: '#999',
-              textAlign: 'right',
-              marginTop: 2,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'flex-end',
-              gap: 3,
-            }}>
-              {time}
-              {isMe && <span style={{ color: '#53bdeb' }}>✓✓</span>}
-            </div>
+
+            {/* Reaction pills */}
+            {Object.keys(reactions).length > 0 && (
+              <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 3 }}>
+                {Object.entries(reactions).map(([emoji, users]) => (
+                  <div
+                    key={emoji}
+                    onClick={() => onReact(msg.id, emoji)}
+                    style={{
+                      background: '#fff',
+                      border: '0.5px solid rgba(0,0,0,0.12)',
+                      borderRadius: 12,
+                      padding: '1px 7px',
+                      fontSize: 13, cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', gap: 3,
+                    }}
+                  >
+                    {emoji}
+                    <span style={{ fontSize: 10, color: '#666' }}>{users.length}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
           </div>
-
-          {/* Reaction pills */}
-          {Object.keys(reactions).length > 0 && (
-            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 3 }}>
-              {Object.entries(reactions).map(([emoji, users]) => (
-                <div
-                  key={emoji}
-                  onClick={() => onReact(msg.id, emoji)}
-                  style={{
-                    background: 'var(--surface, #fff)',
-                    border: '0.5px solid rgba(0,0,0,0.12)',
-                    borderRadius: 12,
-                    padding: '1px 7px',
-                    fontSize: 13,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 3,
-                  }}
-                >
-                  {emoji}
-                  <span style={{ fontSize: 10, color: '#666' }}>{users.length}</span>
-                </div>
-              ))}
-            </div>
-          )}
         </div>
       </div>
 
       {/* Context menu */}
       {ctx && (
         <ContextMenu
-          x={ctx.x}
-          y={ctx.y}
+          x={ctx.x} y={ctx.y}
           isMe={isMe}
           onReact={(em) => onReact(msg.id, em)}
           onDelete={() => { onDelete(msg.id); closeMenu(); }}
           onClose={closeMenu}
         />
       )}
-    </div>
+    </>
   );
 }
 
-// ── Main page ─────────────────────────────────────────────────
+// ── Main page ──────────────────────────────────────────────────
 export default function GroupChatPage() {
   const { currentUser, messages, fetchMessages, sendMessage, deleteMessage } = useApp();
 
-  const [text,        setText]        = useState('');
-  const [sending,     setSending]     = useState(false);
-  const [error,       setError]       = useState('');
-  // typingUsers: [{ id, name, role, avatar_initials, profile_photo_url }]
-  const [typingUsers] = useState([]);
-  // localReactions: { [msgId]: { [emoji]: string[] } }
+  const [text,           setText]           = useState('');
+  const [sending,        setSending]        = useState(false);
+  const [error,          setError]          = useState('');
+  const [typingUsers]                       = useState([]);
   const [localReactions, setLocalReactions] = useState({});
 
-  const bottomRef  = useRef(null);
-  const inputRef   = useRef(null);
-  const pollRef    = useRef(null);
-  const typingRef  = useRef(null); // your own typing emit timer
+  const bottomRef = useRef(null);
+  const inputRef  = useRef(null);
+  const pollRef   = useRef(null);
 
-  // ── Fetch on mount + poll ──────────────────────────────────
   useEffect(() => { fetchMessages(); }, [fetchMessages]);
 
   useEffect(() => {
@@ -367,30 +315,16 @@ export default function GroupChatPage() {
     return () => clearInterval(pollRef.current);
   }, [fetchMessages]);
 
-  // Scroll to bottom when messages change
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, typingUsers]);
 
-  // ── Typing indicator ───────────────────────────────────────
-  // Call your backend's typing endpoint if you have one.
-  // If not, this is a placeholder — wire to your WebSocket/polling.
-  const emitTyping = useCallback(() => {
-    // Example: api.chat.sendTyping()
-    // For now this is a no-op; replace with your real endpoint.
-  }, []);
-
   const handleInputChange = (e) => {
     setText(e.target.value);
-    // Auto-resize
     e.target.style.height = 'auto';
     e.target.style.height = Math.min(e.target.scrollHeight, 100) + 'px';
-    // Emit typing
-    emitTyping();
-    clearTimeout(typingRef.current);
   };
 
-  // ── Send ───────────────────────────────────────────────────
   const handleSend = async () => {
     const trimmed = text.trim();
     if (!trimmed || sending) return;
@@ -399,10 +333,7 @@ export default function GroupChatPage() {
     try {
       await sendMessage(trimmed);
       setText('');
-      if (inputRef.current) {
-        inputRef.current.style.height = 'auto';
-        inputRef.current.focus();
-      }
+      if (inputRef.current) { inputRef.current.style.height = 'auto'; inputRef.current.focus(); }
     } catch (err) {
       setError(err.message || 'Failed to send message.');
     } finally {
@@ -414,42 +345,30 @@ export default function GroupChatPage() {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
   };
 
-  // ── Delete ─────────────────────────────────────────────────
   const handleDelete = async (id) => {
-    try {
-      await deleteMessage(id);
-    } catch (err) {
-      setError(err.message || 'Failed to delete message.');
-    }
+    try { await deleteMessage(id); }
+    catch (err) { setError(err.message || 'Failed to delete message.'); }
   };
 
-  // ── Reactions (local-first, wire to backend as needed) ─────
+  // Local-first reactions — wire to backend when ready
   const handleReact = (msgId, emoji) => {
     const userId = currentUser?.id;
     if (!userId) return;
     setLocalReactions(prev => {
-      const msgReactions = { ...(prev[msgId] || {}) };
-      const users = [...(msgReactions[emoji] || [])];
+      const mr    = { ...(prev[msgId] || {}) };
+      const users = [...(mr[emoji] || [])];
       const idx   = users.indexOf(userId);
-      if (idx >= 0) users.splice(idx, 1);
-      else           users.push(userId);
-      if (users.length === 0) delete msgReactions[emoji];
-      else msgReactions[emoji] = users;
-      return { ...prev, [msgId]: msgReactions };
+      if (idx >= 0) users.splice(idx, 1); else users.push(userId);
+      if (users.length === 0) delete mr[emoji]; else mr[emoji] = users;
+      return { ...prev, [msgId]: mr };
     });
-    // TODO: call api.chat.reactMessage(msgId, emoji) when backend supports it
   };
 
-  // Merge server messages with local reactions
   const mergedMessages = messages.map(m => ({
     ...m,
-    reactions: {
-      ...(m.reactions || {}),
-      ...(localReactions[m.id] || {}),
-    },
+    reactions: { ...(m.reactions || {}), ...(localReactions[m.id] || {}) },
   }));
 
-  // ── Group by date ──────────────────────────────────────────
   const grouped = mergedMessages.reduce((acc, m) => {
     const d = m.sent_at ? m.sent_at.split('T')[0] : 'today';
     if (!acc[d]) acc[d] = [];
@@ -459,27 +378,21 @@ export default function GroupChatPage() {
 
   const formatDate = (dateStr) => {
     if (dateStr === 'today') return 'Today';
-    const d   = new Date(dateStr);
-    const now = new Date();
+    const d    = new Date(dateStr);
+    const now  = new Date();
     const yest = new Date(); yest.setDate(now.getDate() - 1);
-    if (d.toDateString() === now.toDateString())   return 'Today';
-    if (d.toDateString() === yest.toDateString())  return 'Yesterday';
+    if (d.toDateString() === now.toDateString())  return 'Today';
+    if (d.toDateString() === yest.toDateString()) return 'Yesterday';
     return d.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' });
   };
 
   return (
     <>
-      {/* Typing dot keyframe — injected once */}
-      <style>{`
-        @keyframes chatDot {
-          0%, 60%, 100% { opacity: 0.3; }
-          30%            { opacity: 1;   }
-        }
-      `}</style>
+      <style>{`@keyframes chatDot { 0%,60%,100%{opacity:.3} 30%{opacity:1} }`}</style>
 
       <div className="chat-layout">
 
-        {/* ── Header ── */}
+        {/* Header */}
         <div className="chat-header">
           <div className="chat-header-left">
             <div className="chat-group-icon">
@@ -494,15 +407,13 @@ export default function GroupChatPage() {
               <h3 className="chat-group-name">Company Group</h3>
               <p className="chat-group-sub">
                 {typingUsers.length > 0
-                  ? `${typingUsers.map(u => u.name).join(', ')} ${typingUsers.length === 1 ? 'is' : 'are'} typing…`
-                  : `${messages.length} messages · live`
-                }
+                  ? typingUsers.map(u => u.name).join(', ') + (typingUsers.length === 1 ? ' is typing…' : ' are typing…')
+                  : messages.length + ' messages · live'}
               </p>
             </div>
           </div>
         </div>
 
-        {/* ── Error ── */}
         {error && (
           <div className="chat-error" role="alert">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -514,13 +425,11 @@ export default function GroupChatPage() {
           </div>
         )}
 
-        {/* ── Messages ── */}
+        {/* Messages */}
         <div className="chat-messages">
           {Object.entries(grouped).map(([date, msgs]) => (
             <div key={date}>
-              <div className="chat-date-divider">
-                <span>{formatDate(date)}</span>
-              </div>
+              <div className="chat-date-divider"><span>{formatDate(date)}</span></div>
               {msgs.map(msg => (
                 <ChatMessage
                   key={msg.id}
@@ -540,13 +449,11 @@ export default function GroupChatPage() {
             </div>
           )}
 
-          {/* Typing indicator at the bottom */}
           <TypingIndicator typingUsers={typingUsers} />
-
           <div ref={bottomRef} />
         </div>
 
-        {/* ── Input bar ── */}
+        {/* Input bar */}
         <div className="chat-input-bar">
           <div className="chat-input-wrap">
             <textarea
@@ -580,7 +487,7 @@ export default function GroupChatPage() {
         </div>
 
         <div className="chat-hint" aria-hidden="true">
-          Right-click or long-press a message to react or delete
+          Right-click or hold a message to react or delete
         </div>
 
       </div>
