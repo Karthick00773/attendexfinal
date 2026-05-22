@@ -161,8 +161,6 @@ export default function AttendancePage() {
     attendanceHistory, fetchAttendanceHistory,
     monthlySummary, fetchMonthlySummary,
     checkIn, checkOut, startBreak, endBreak,
-    // NOTE: activeBreak does NOT exist in AppContext — it was removed.
-    // isBreak is derived from todayRecord below.
   } = useApp();
 
   const [checkingIn,   setCheckingIn]   = useState(false);
@@ -191,21 +189,13 @@ export default function AttendancePage() {
   }, [fetchTodayAttendance, fetchAttendanceHistory, fetchMonthlySummary, showAttendanceDetails]);
 
   const today = todayRecord;
-  console.log('todayRecord:', JSON.stringify(today, null, 2));
 
-  // ── isBreak derived ONLY from todayRecord ─────────────────────
-  // As per AppContext comment: this is the single source of truth.
-  // break_start_time is set when break starts.
-  // break_end_time is set when break ends.
-  // On break = start is set AND end is NOT set.
+  // isBreak derived ONLY from todayRecord
   const isBreak = Boolean(today?.break_start_time && !today?.break_end_time);
 
-  // ── Sync local breakStartTime with todayRecord ────────────────
-  // When isBreak flips true  → start (or preserve) the local live timer.
-  // When isBreak flips false → clear the local live timer.
+  // Sync local breakStartTime with todayRecord
   useEffect(() => {
     if (isBreak && today?.break_start_time) {
-      // Use server's break_start_time so the timer is accurate after page refresh
       setBreakStartTime(new Date(today.break_start_time));
     } else {
       setBreakStartTime(null);
@@ -213,7 +203,7 @@ export default function AttendancePage() {
     }
   }, [isBreak, today?.break_start_time]);
 
-  // ── Live working + break timer ────────────────────────────────
+  // Live working + break timer
   useEffect(() => {
     if (!today || today.check_out_time) {
       setWorkingSeconds(0);
@@ -226,19 +216,13 @@ export default function AttendancePage() {
       const checkInTime  = new Date(today.check_in_time);
       const totalElapsed = Math.floor((now - checkInTime) / 1000);
 
-      // Completed break minutes already saved by backend
       const pastBreakSecs = (today.break_minutes || 0) * 60;
 
-      // Currently running break segment (live)
       const currentBreakSecs = isBreak && breakStartTime
         ? Math.floor((now - breakStartTime) / 1000)
         : 0;
 
-      const totalBreakSecs = pastBreakSecs + currentBreakSecs;
-
-      // 80-minute free break rule:
-      // First 80 min of total daily break are free (not deducted).
-      // Only time beyond 80 min reduces working hours.
+      const totalBreakSecs    = pastBreakSecs + currentBreakSecs;
       const freeBreakSecs     = FREE_BREAK_MINUTES * 60;
       const billableBreakSecs = Math.max(0, totalBreakSecs - freeBreakSecs);
 
@@ -251,14 +235,14 @@ export default function AttendancePage() {
     return () => clearInterval(interval);
   }, [today, isBreak, breakStartTime]);
 
-  // ── Check In ─────────────────────────────────────────────────
+  // Check In
   const handleCheckIn = () => {
     setError('');
     cameraActionRef.current = 'checkin';
     setCamera('checkin');
   };
 
-  // ── Check Out ────────────────────────────────────────────────
+  // Check Out
   const handleCheckOut = () => {
     setError('');
     cameraActionRef.current = 'checkout';
@@ -299,17 +283,7 @@ export default function AttendancePage() {
     }
   };
 
-  // ── Break toggle ──────────────────────────────────────────────
-  // startBreak() → backend sets break_start_time, clears break_end_time
-  //              → context sets todayRecord from response
-  //              → isBreak becomes true → timer starts
-  //
-  // endBreak()   → backend sets break_end_time, adds to break_minutes
-  //              → context sets todayRecord from response
-  //              → isBreak becomes false → timer stops
-  //
-  // fetchTodayAttendance() after each call guarantees the UI is in sync
-  // with the server even if the API response was partial.
+  // Break toggle
   const handleBreak = async () => {
     setBreakLoading(true);
     setError('');
@@ -319,7 +293,6 @@ export default function AttendancePage() {
       } else {
         await startBreak();
       }
-      // Re-fetch to guarantee todayRecord has the latest break fields
       await fetchTodayAttendance();
     } catch (err) {
       const raw   = err?.message || '';
@@ -327,18 +300,17 @@ export default function AttendancePage() {
       if (lower.includes('network') || lower.includes('fetch')) {
         setError('Network error. Please check your connection and try again.');
       } else if (lower.includes('already')) {
-        // Server state already matched — just resync silently
+        // Server state already matched — resync silently
       } else {
         setError(raw || 'Could not update break status. Please try again.');
       }
-      // Always resync on error so the UI reflects the real server state
       try { await fetchTodayAttendance(); } catch (_) {}
     } finally {
       setBreakLoading(false);
     }
   };
 
-  // ── Break display helpers ─────────────────────────────────────
+  // Break display helpers
   const totalBreakMinutes = today
     ? (today.break_minutes || 0) +
       (isBreak && breakStartTime
@@ -349,14 +321,14 @@ export default function AttendancePage() {
   const freeBreakRemaining   = Math.max(0, FREE_BREAK_MINUTES - totalBreakMinutes);
   const billableBreakMinutes = Math.max(0, totalBreakMinutes - FREE_BREAK_MINUTES);
 
-  const statusLabel = !today         ? 'Not Checked In'
-    : isBreak                        ? 'On Break'
-    : today.check_out_time           ? 'Checked Out'
+  const statusLabel = !today               ? 'Not Checked In'
+    : isBreak                              ? 'On Break'
+    : today.check_out_time                 ? 'Checked Out'
     : 'Present';
 
-  const statusColor = !today         ? 'badge-red'
-    : isBreak                        ? 'badge-orange'
-    : today.check_out_time           ? 'badge-blue'
+  const statusColor = !today               ? 'badge-red'
+    : isBreak                              ? 'badge-orange'
+    : today.check_out_time                 ? 'badge-blue'
     : 'badge-green';
 
   const fmtTime = (iso) =>
@@ -485,7 +457,7 @@ export default function AttendancePage() {
           </div>
         )}
 
-        {/* Post-break summary (while working, after break ends) */}
+        {/* Post-break summary */}
         {!isBreak && today && !today.check_out_time && today.break_minutes > 0 && (
           <div className="break-banner" style={{ background: 'var(--surface-2, #f5f5f5)', borderColor: 'var(--border)' }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -504,8 +476,10 @@ export default function AttendancePage() {
         {msg   && <p className="gps-msg">{msg}</p>}
         {error && <p className="gps-msg" style={{ color: 'var(--red)' }}>{error}</p>}
 
-        {/* Action buttons */}
+        {/* ── Action buttons ── */}
         <div className="attend-actions">
+
+          {/* Check In — only when no record today */}
           {!today && (
             <button className="btn btn-primary btn-lg attend-btn" onClick={handleCheckIn} disabled={checkingIn}>
               {checkingIn ? (
@@ -522,6 +496,7 @@ export default function AttendancePage() {
             </button>
           )}
 
+          {/* Break + Check Out — only while checked in and not yet checked out */}
           {today && !today.check_out_time && (
             <>
               <button
@@ -561,22 +536,8 @@ export default function AttendancePage() {
               </button>
             </>
           )}
-          {/* TEMP DEBUG BUTTON */}
-<button onClick={async () => {
-  try {
-    const res = await endBreak();
-    console.log('force endBreak:', res);
-    await fetchTodayAttendance();
-  } catch(e) {
-    console.error('force endBreak error:', e);
-  }
-}} style={{ background: 'red', color: 'white', padding: '8px 16px', borderRadius: 8, border: 'none', cursor: 'pointer' }}>
-  Force End Break (DEBUG)
-</button>
 
-{today?.check_out_time && (
-  <div className="attend-done-msg">
-
+          {/* Done message — only after checkout */}
           {today?.check_out_time && (
             <div className="attend-done-msg">
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -586,8 +547,9 @@ export default function AttendancePage() {
               Great work today! See you tomorrow 🎉
             </div>
           )}
-        </div>
-      </div>
+
+        </div>{/* end attend-actions */}
+      </div>{/* end card attend-main-card */}
 
       {/* Monthly summary */}
       {monthlySummary && showAttendanceDetails && (
@@ -724,6 +686,7 @@ export default function AttendancePage() {
           )}
         </div>
       )}
+
     </div>
   );
 }

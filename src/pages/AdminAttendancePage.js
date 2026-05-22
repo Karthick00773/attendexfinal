@@ -89,7 +89,7 @@ export default function AdminAttendancePage() {
       setSuccessMsg('Employee added successfully. They will receive login credentials via email.');
       setAddEmpModal(false);
       setAddEmpForm({ name: '', email: '', designation: '', department: '', phone: '', role: 'employee' });
-      fetchAllEmployeesToday(); // Refresh the list
+      fetchAllEmployeesToday();
       setTimeout(() => setSuccessMsg(''), 5000);
     } catch (err) {
       setError(err.message || 'Failed to add employee.');
@@ -98,7 +98,25 @@ export default function AdminAttendancePage() {
     }
   };
 
-  const fmtTime = (iso) => iso ? new Date(iso).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false }) : '—';
+  const fmtTime = (iso) =>
+    iso ? new Date(iso).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false }) : '—';
+
+  // ── Derive employee status — now includes 'break' ─────────────
+  // break = checked in + break_start_time set + break_end_time NOT set
+  const getStatus = (emp) => {
+    const today = emp.today;
+    if (!today)                   return 'absent';
+    if (today.check_out_time)     return 'left';
+    if (today.break_start_time && !today.break_end_time) return 'break';
+    return 'present';
+  };
+
+  const statusMeta = {
+    absent:  { label: 'Absent',      color: 'badge-red',    dot: '#ef4444' },
+    left:    { label: 'Checked Out', color: 'badge-blue',   dot: '#3b82f6' },
+    present: { label: 'Present',     color: 'badge-green',  dot: '#22c55e' },
+    break:   { label: 'On Break',    color: 'badge-orange', dot: '#f59e0b' },
+  };
 
   return (
     <div className="page animate-fadeup">
@@ -126,21 +144,15 @@ export default function AdminAttendancePage() {
         </div>
       </div>
 
-      {error && <div className="leave-success" style={{ marginBottom: 16, background: '#fef2f2', borderColor: '#fca5a5', color: '#dc2626' }}>{error}</div>}
+      {error      && <div className="leave-success" style={{ marginBottom: 16, background: '#fef2f2', borderColor: '#fca5a5', color: '#dc2626' }}>{error}</div>}
       {successMsg && <div className="leave-success" style={{ marginBottom: 16 }}>{successMsg}</div>}
 
-      {/* Employee cards */}
+      {/* ── Employee cards ── */}
       <div className="admin-emp-grid">
         {allEmployeesToday.map(emp => {
-          const today = emp.today;
-          const status = !today ? 'absent'
-            : today.check_out_time ? 'left'
-            : 'present';
-          const statusMeta = {
-            absent:  { label: 'Absent',       color: 'badge-red'    },
-            left:    { label: 'Checked Out',  color: 'badge-blue'   },
-            present: { label: 'Present',      color: 'badge-green'  },
-          };
+          const status = getStatus(emp);
+          const meta   = statusMeta[status];
+          const today  = emp.today;
 
           return (
             <div
@@ -154,8 +166,28 @@ export default function AdminAttendancePage() {
                   <span className="admin-emp-name">{emp.name}</span>
                   <span className="admin-emp-role">{emp.designation}</span>
                 </div>
-                <span className={`badge ${statusMeta[status].color}`}>● {statusMeta[status].label}</span>
+
+                {/* ── Status badge with animated dot ── */}
+                <span className={`badge ${meta.color}`} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                  {/* Pulsing dot for 'on break', static dot for others */}
+                  {status === 'break' ? (
+                    <span style={{
+                      width: 8, height: 8, borderRadius: '50%',
+                      background: meta.dot,
+                      display: 'inline-block',
+                      animation: 'badge-pulse 1.4s ease-in-out infinite',
+                    }} />
+                  ) : (
+                    <span style={{
+                      width: 8, height: 8, borderRadius: '50%',
+                      background: meta.dot,
+                      display: 'inline-block',
+                    }} />
+                  )}
+                  {meta.label}
+                </span>
               </div>
+
               <div className="admin-emp-times">
                 <div className="admin-emp-time-item">
                   <span>Check-In</span>
@@ -174,14 +206,39 @@ export default function AdminAttendancePage() {
                   <strong style={{ color: 'var(--orange)' }}>{formatHrs(today?.overtime_hours)}</strong>
                 </div>
               </div>
-              <div className="admin-emp-monthly">
-                <div className="admin-emp-monthly-item">
-                  <span>Click to view {month} history</span>
+
+              {/* Break info row — only shown when employee is on break */}
+              {status === 'break' && (
+                <div style={{
+                  marginTop: 10,
+                  padding: '7px 12px',
+                  background: '#fffbeb',
+                  border: '1px solid #fde68a',
+                  borderRadius: 8,
+                  fontSize: '0.78rem',
+                  color: '#92400e',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M18 8h1a4 4 0 0 1 0 8h-1"/>
+                    <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/>
+                    <line x1="6" y1="1" x2="6" y2="4"/>
+                    <line x1="10" y1="1" x2="10" y2="4"/>
+                    <line x1="14" y1="1" x2="14" y2="4"/>
+                  </svg>
+                  On break since <strong style={{ marginLeft: 3 }}>{fmtTime(today?.break_start_time)}</strong>
                 </div>
+              )}
+
+              <div className="admin-emp-monthly">
+                <span>Click to view {month} history</span>
               </div>
             </div>
           );
         })}
+
         {allEmployeesToday.length === 0 && (
           <div className="card" style={{ padding: 32, textAlign: 'center', gridColumn: '1/-1' }}>
             <p className="empty-msg">No employee data available.</p>
@@ -189,15 +246,19 @@ export default function AdminAttendancePage() {
         )}
       </div>
 
-      {/* Detailed history */}
+      {/* ── Detailed history ── */}
       {selectedEmp && (
         <div className="card admin-detail-card">
           <div className="card-head">
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <div className="avatar avatar-md">{selectedEmp.avatar_initials}</div>
               <div>
-                <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text)' }}>{selectedEmp.name} — {month} History</h3>
-                <p style={{ fontSize: '0.8rem', color: 'var(--muted)' }}>{selectedEmp.designation} · {selectedEmp.department}</p>
+                <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text)' }}>
+                  {selectedEmp.name} — {month} History
+                </h3>
+                <p style={{ fontSize: '0.8rem', color: 'var(--muted)' }}>
+                  {selectedEmp.designation} · {selectedEmp.department}
+                </p>
               </div>
             </div>
             <button className="btn btn-ghost btn-sm" onClick={() => { setSelectedEmp(null); setEmpHistory([]); }}>✕ Close</button>
@@ -230,21 +291,32 @@ export default function AdminAttendancePage() {
                       <td>
                         <div className="table-time-cell">
                           {fmtTime(r.check_in_time)}
-                          {r.check_in_photo_url && <a href={r.check_in_photo_url} target="_blank" rel="noreferrer" className="table-photo-badge" title="View photo">📷</a>}
+                          {r.check_in_photo_url && (
+                            <a href={r.check_in_photo_url} target="_blank" rel="noreferrer" className="table-photo-badge" title="View photo">📷</a>
+                          )}
                         </div>
                       </td>
                       <td>
                         <div className="table-time-cell">
                           {fmtTime(r.check_out_time)}
-                          {r.check_out_photo_url && <a href={r.check_out_photo_url} target="_blank" rel="noreferrer" className="table-photo-badge" title="View photo">📷</a>}
+                          {r.check_out_photo_url && (
+                            <a href={r.check_out_photo_url} target="_blank" rel="noreferrer" className="table-photo-badge" title="View photo">📷</a>
+                          )}
                         </div>
                       </td>
                       <td><span style={{ color: 'var(--accent)', fontWeight: 700 }}>{formatHrs(r.normal_hours)}</span></td>
                       <td><span style={{ color: 'var(--orange)', fontWeight: 700 }}>{formatHrs(r.overtime_hours)}</span></td>
-                      <td><span className={`badge ${r.status === 'present' ? 'badge-green' : r.status === 'on_leave' ? 'badge-orange' : 'badge-red'}`}>{r.status}</span></td>
+                      <td>
+                        <span className={`badge ${r.status === 'present' ? 'badge-green' : r.status === 'on_leave' ? 'badge-orange' : 'badge-red'}`}>
+                          {r.status}
+                        </span>
+                      </td>
                       <td>
                         <button className="btn btn-ghost btn-sm" onClick={() => openOverride(r)} title="Override record">
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                          </svg>
                         </button>
                       </td>
                     </tr>
@@ -256,11 +328,13 @@ export default function AdminAttendancePage() {
         </div>
       )}
 
-      {/* Override modal */}
+      {/* ── Override modal ── */}
       {overrideModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
           <div className="card" style={{ width: '100%', maxWidth: 480, padding: 24 }}>
-            <h3 className="card-title">Override Record — {new Date(overrideModal.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}</h3>
+            <h3 className="card-title">
+              Override Record — {new Date(overrideModal.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}
+            </h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 16 }}>
               <div className="form-group">
                 <label className="label">Status</label>
@@ -292,7 +366,7 @@ export default function AdminAttendancePage() {
         </div>
       )}
 
-      {/* Add Employee Modal */}
+      {/* ── Add Employee modal ── */}
       {addEmpModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
           <div className="card" style={{ width: '100%', maxWidth: 480, padding: 24 }}>
@@ -300,65 +374,38 @@ export default function AdminAttendancePage() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 16 }}>
               <div className="form-group">
                 <label className="label">Full Name</label>
-                <input
-                  type="text"
-                  className="input"
-                  placeholder="John Doe"
+                <input type="text" className="input" placeholder="John Doe"
                   value={addEmpForm.name}
-                  onChange={e => setAddEmpForm(f => ({ ...f, name: e.target.value }))}
-                  required
-                />
+                  onChange={e => setAddEmpForm(f => ({ ...f, name: e.target.value }))} />
               </div>
               <div className="form-group">
                 <label className="label">Email Address</label>
-                <input
-                  type="email"
-                  className="input"
-                  placeholder="john.doe@company.com"
+                <input type="email" className="input" placeholder="john.doe@company.com"
                   value={addEmpForm.email}
-                  onChange={e => setAddEmpForm(f => ({ ...f, email: e.target.value }))}
-                  required
-                />
+                  onChange={e => setAddEmpForm(f => ({ ...f, email: e.target.value }))} />
               </div>
               <div className="form-group">
                 <label className="label">Designation</label>
-                <input
-                  type="text"
-                  className="input"
-                  placeholder="Software Engineer"
+                <input type="text" className="input" placeholder="Software Engineer"
                   value={addEmpForm.designation}
-                  onChange={e => setAddEmpForm(f => ({ ...f, designation: e.target.value }))}
-                  required
-                />
+                  onChange={e => setAddEmpForm(f => ({ ...f, designation: e.target.value }))} />
               </div>
               <div className="form-group">
                 <label className="label">Department</label>
-                <input
-                  type="text"
-                  className="input"
-                  placeholder="Engineering"
+                <input type="text" className="input" placeholder="Engineering"
                   value={addEmpForm.department}
-                  onChange={e => setAddEmpForm(f => ({ ...f, department: e.target.value }))}
-                  required
-                />
+                  onChange={e => setAddEmpForm(f => ({ ...f, department: e.target.value }))} />
               </div>
               <div className="form-group">
                 <label className="label">Phone Number</label>
-                <input
-                  type="tel"
-                  className="input"
-                  placeholder="+91 98765 43210"
+                <input type="tel" className="input" placeholder="+91 98765 43210"
                   value={addEmpForm.phone}
-                  onChange={e => setAddEmpForm(f => ({ ...f, phone: e.target.value }))}
-                />
+                  onChange={e => setAddEmpForm(f => ({ ...f, phone: e.target.value }))} />
               </div>
               <div className="form-group">
                 <label className="label">Role</label>
-                <select
-                  className="input"
-                  value={addEmpForm.role}
-                  onChange={e => setAddEmpForm(f => ({ ...f, role: e.target.value }))}
-                >
+                <select className="input" value={addEmpForm.role}
+                  onChange={e => setAddEmpForm(f => ({ ...f, role: e.target.value }))}>
                   <option value="employee">Employee</option>
                   <option value="admin">Admin</option>
                   <option value="ceo">CEO</option>
@@ -375,6 +422,16 @@ export default function AdminAttendancePage() {
           </div>
         </div>
       )}
+
+      {/* ── Pulse animation for break dot ── */}
+      <style>{`
+        @keyframes badge-pulse {
+          0%   { box-shadow: 0 0 0 0   rgba(245,158,11,0.5); }
+          60%  { box-shadow: 0 0 0 6px rgba(245,158,11,0);   }
+          100% { box-shadow: 0 0 0 0   rgba(245,158,11,0);   }
+        }
+      `}</style>
+
     </div>
   );
 }

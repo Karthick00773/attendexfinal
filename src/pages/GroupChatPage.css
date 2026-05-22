@@ -1,5 +1,5 @@
 /* ============================================================
-   GroupChatPage.css  — updated with all new features
+   GroupChatPage.css
    ============================================================ */
 
 /* ── Layout ───────────────────────────────────────────────── */
@@ -13,11 +13,10 @@
   overflow: hidden;
 }
 
-/* ── Header ───────────────────────────────────────────────── */
+/* ── Header — only group info, no user avatar ─────────────── */
 .chat-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   padding: 12px 18px;
   background: #ffffff;
   border-bottom: 1px solid #ebebeb;
@@ -29,18 +28,12 @@
   display: flex;
   align-items: center;
   gap: 12px;
+  flex: 1;
 }
 
+/* hide the right side avatar/name completely */
 .chat-header-right {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.chat-header-me {
-  font-size: 13px;
-  font-weight: 500;
-  color: #6b7280;
+  display: none;
 }
 
 .chat-group-icon {
@@ -105,7 +98,7 @@
   padding: 16px 16px 8px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
   scroll-behavior: smooth;
 }
 
@@ -143,7 +136,7 @@
   display: flex;
   align-items: flex-end;
   gap: 8px;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
   animation: msg-in 0.18s ease;
 }
 
@@ -152,19 +145,19 @@
   to   { opacity: 1; transform: translateY(0); }
 }
 
-/* Their messages — left aligned */
+/* Other people — avatar + bubble on the LEFT */
 .chat-msg-them {
   flex-direction: row;
   justify-content: flex-start;
 }
 
-/* My messages — right aligned */
+/* My messages — NO avatar, bubble pushed to the RIGHT */
 .chat-msg-me {
-  flex-direction: row-reverse;
-  justify-content: flex-start;
+  flex-direction: row;
+  justify-content: flex-end;
 }
 
-/* ── Message body (name + bubble + time) ──────────────────── */
+/* ── Message body ─────────────────────────────────────────── */
 .chat-msg-body {
   display: flex;
   flex-direction: column;
@@ -172,15 +165,17 @@
   position: relative;
 }
 
+/* my bubble body — right aligned text & time */
 .chat-msg-me .chat-msg-body {
   align-items: flex-end;
 }
 
+/* their bubble body — left aligned */
 .chat-msg-them .chat-msg-body {
   align-items: flex-start;
 }
 
-/* ── Sender name ──────────────────────────────────────────── */
+/* ── Sender name (others only) ────────────────────────────── */
 .chat-msg-name {
   font-size: 11.5px;
   font-weight: 600;
@@ -207,28 +202,31 @@
   line-height: 1.5;
   word-break: break-word;
   cursor: default;
+  /* prevent text selection on long-press so menu shows */
+  -webkit-user-select: none;
   user-select: none;
+  -webkit-touch-callout: none;
   transition: transform 0.1s, filter 0.1s;
 }
 
 .chat-bubble--pressing {
   transform: scale(0.97);
-  filter: brightness(0.95);
+  filter: brightness(0.93);
 }
 
-/* Their bubble */
+/* Other people's bubble — white, left tail */
 .chat-bubble-them {
   background: #ffffff;
   color: #111827;
   border: 1px solid #e5e7eb;
-  border-bottom-left-radius: 5px;
+  border-bottom-left-radius: 4px;
 }
 
-/* My bubble */
+/* My bubble — purple, right tail */
 .chat-bubble-me {
   background: #7c3aed;
   color: #ffffff;
-  border-bottom-right-radius: 5px;
+  border-bottom-right-radius: 4px;
 }
 
 .chat-bubble-text {
@@ -243,74 +241,43 @@
   padding: 0 2px;
 }
 
-.chat-time--me {
-  color: #9ca3af;
-}
-
-/* ── Reaction row ─────────────────────────────────────────── */
-.reaction-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  margin-top: 4px;
-}
-
-.reaction-row--me {
-  justify-content: flex-end;
-}
-
-.reaction-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  padding: 2px 8px;
-  border-radius: 20px;
-  border: 1px solid #e5e7eb;
-  background: #ffffff;
-  font-size: 13px;
-  cursor: pointer;
-  transition: background 0.15s, transform 0.1s;
-}
-
-.reaction-pill span {
-  font-size: 11px;
-  color: #6b7280;
-  font-weight: 500;
-}
-
-.reaction-pill:hover {
-  background: #f3f4f6;
-  transform: scale(1.08);
-}
-
-/* ── Context menu ─────────────────────────────────────────── */
+/* ── Delete popup menu ────────────────────────────────────── */
 .msg-menu {
   position: absolute;
-  top: calc(100% + 6px);
+  bottom: calc(100% + 6px);   /* appears ABOVE the bubble */
   z-index: 200;
   background: #ffffff;
   border: 1px solid #e5e7eb;
   border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14);
   padding: 5px;
-  min-width: 130px;
+  min-width: 150px;
   animation: menu-pop 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 @keyframes menu-pop {
-  from { opacity: 0; transform: scale(0.88); }
+  from { opacity: 0; transform: scale(0.85); }
   to   { opacity: 1; transform: scale(1); }
 }
 
-.msg-menu--left  { left: 0; transform-origin: top left; }
-.msg-menu--right { right: 0; transform-origin: top right; }
+/* for my (right-side) messages — anchor menu to the right */
+.msg-menu--right {
+  right: 0;
+  transform-origin: bottom right;
+}
+
+/* for others (left-side) messages */
+.msg-menu--left {
+  left: 0;
+  transform-origin: bottom left;
+}
 
 .msg-menu-item {
   display: flex;
   align-items: center;
   gap: 8px;
   width: 100%;
-  padding: 8px 10px;
+  padding: 9px 12px;
   border: none;
   background: transparent;
   border-radius: 8px;
@@ -323,42 +290,10 @@
 
 .msg-menu-item:hover { background: #f3f4f6; }
 
-.msg-menu-item--danger { color: #ef4444; }
+.msg-menu-item--danger       { color: #ef4444; }
 .msg-menu-item--danger:hover { background: #fef2f2; }
 
-/* ── Emoji picker ─────────────────────────────────────────── */
-.emoji-picker {
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 0;
-  z-index: 210;
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 14px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-  padding: 8px 10px;
-  display: flex;
-  gap: 4px;
-  animation: menu-pop 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-.emoji-btn {
-  font-size: 20px;
-  padding: 5px;
-  border: none;
-  background: transparent;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: transform 0.12s, background 0.12s;
-  line-height: 1;
-}
-
-.emoji-btn:hover {
-  transform: scale(1.25);
-  background: #f3f4f6;
-}
-
-/* ── Input bar ────────────────────────────────────────────── */
+/* ── Input bar — NO avatar on the left ───────────────────── */
 .chat-input-bar {
   display: flex;
   align-items: flex-end;
@@ -367,6 +302,12 @@
   background: #ffffff;
   border-top: 1px solid #ebebeb;
   flex-shrink: 0;
+}
+
+/* hide the avatar that was in the input bar */
+.chat-input-bar > .chat-avatar-pill,
+.chat-input-bar > .chat-avatar-initials {
+  display: none;
 }
 
 .chat-input-wrap {
@@ -417,7 +358,7 @@
 
 .chat-send-btn:hover:not(:disabled) {
   background: #6d28d9;
-  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.4);
+  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.35);
 }
 
 .chat-send-btn:active:not(:disabled) { transform: scale(0.93); }
@@ -428,14 +369,9 @@
   cursor: not-allowed;
 }
 
-/* ── Spin animation ───────────────────────────────────────── */
-.spin-icon {
-  animation: spin 0.8s linear infinite;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
+/* ── Spin ─────────────────────────────────────────────────── */
+.spin-icon { animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
 
 /* ── Empty state ──────────────────────────────────────────── */
 .chat-empty {
@@ -449,10 +385,9 @@
   color: #9ca3af;
   font-size: 14px;
 }
-
 .chat-empty-icon { font-size: 40px; }
 
-/* ── One-time long-press hint ─────────────────────────────── */
+/* ── Long-press hint ──────────────────────────────────────── */
 .chat-hint {
   position: absolute;
   bottom: 72px;
@@ -477,36 +412,30 @@
 
 /* ── Dark mode ────────────────────────────────────────────── */
 @media (prefers-color-scheme: dark) {
-  .chat-layout        { background: #0f0f10; }
-  .chat-header        { background: #1a1a1d; border-color: #2a2a2d; }
-  .chat-group-name    { color: #f9fafb; }
-  .chat-header-me     { color: #9ca3af; }
-  .chat-group-icon    { background: #2e1f4e; color: #a78bfa; }
+  .chat-layout     { background: #0f0f10; }
+  .chat-header     { background: #1a1a1d; border-color: #2a2a2d; }
+  .chat-group-name { color: #f9fafb; }
+  .chat-group-icon { background: #2e1f4e; color: #a78bfa; }
+  .chat-group-sub  { color: #6b7280; }
 
   .chat-date-divider::before,
   .chat-date-divider::after { background: #2a2a2d; }
   .chat-date-divider span   { background: #1f1f22; color: #6b7280; }
 
-  .chat-bubble-them   { background: #1f1f22; color: #f3f4f6; border-color: #2a2a2d; }
-  .chat-bubble-me     { background: #6d28d9; }
+  .chat-bubble-them { background: #1f1f22; color: #f3f4f6; border-color: #2a2a2d; }
+  .chat-bubble-me   { background: #6d28d9; }
 
-  .reaction-pill      { background: #1f1f22; border-color: #2a2a2d; }
-  .reaction-pill span { color: #9ca3af; }
-  .reaction-pill:hover { background: #2a2a2d; }
-
-  .msg-menu           { background: #1f1f22; border-color: #2a2a2d; box-shadow: 0 8px 24px rgba(0,0,0,0.4); }
-  .msg-menu-item      { color: #e5e7eb; }
+  .msg-menu       { background: #1f1f22; border-color: #2a2a2d; box-shadow: 0 8px 24px rgba(0,0,0,0.4); }
+  .msg-menu-item  { color: #e5e7eb; }
   .msg-menu-item:hover { background: #2a2a2d; }
+  .msg-menu-item--danger:hover { background: #450a0a; }
 
-  .emoji-picker       { background: #1f1f22; border-color: #2a2a2d; box-shadow: 0 8px 24px rgba(0,0,0,0.4); }
-  .emoji-btn:hover    { background: #2a2a2d; }
-
-  .chat-input-bar     { background: #1a1a1d; border-color: #2a2a2d; }
-  .chat-input-wrap    { background: #111113; border-color: #2a2a2d; }
-  .chat-input         { color: #f3f4f6; }
+  .chat-input-bar  { background: #1a1a1d; border-color: #2a2a2d; }
+  .chat-input-wrap { background: #111113; border-color: #2a2a2d; }
+  .chat-input      { color: #f3f4f6; }
   .chat-input::placeholder { color: #6b7280; }
   .chat-send-btn:disabled  { background: #2a2a2d; color: #4b5563; }
 
-  .chat-error         { background: #2d0a0a; color: #fca5a5; border-color: #7f1d1d; }
-  .chat-time          { color: #6b7280; }
+  .chat-error { background: #2d0a0a; color: #fca5a5; border-color: #7f1d1d; }
+  .chat-time  { color: #6b7280; }
 }

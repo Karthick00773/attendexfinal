@@ -4,10 +4,10 @@ import './GroupChatPage.css';
 
 const roleColor = { employee: '#a855f7', admin: '#3b82f6', ceo: '#f59e0b' };
 
-// ── Avatar pill ───────────────────────────────────────────────
+// ── Avatar (photo or initials) ────────────────────────────────
 function Avatar({ user, size = 36 }) {
-  const role   = user?.role || 'employee';
-  const color  = roleColor[role] || '#a855f7';
+  const role     = user?.role || 'employee';
+  const color    = roleColor[role] || '#a855f7';
   const initials = user?.avatar_initials || '?';
 
   if (user?.profile_photo_url) {
@@ -23,20 +23,14 @@ function Avatar({ user, size = 36 }) {
   return (
     <div
       className="chat-avatar-pill chat-avatar-initials"
-      style={{
-        width: size,
-        height: size,
-        background: `${color}22`,
-        color,
-        fontSize: size * 0.38,
-      }}
+      style={{ width: size, height: size, background: `${color}22`, color, fontSize: size * 0.38 }}
     >
       {initials}
     </div>
   );
 }
 
-// ── Delete confirm popup (long-press own message only) ────────
+// ── Delete menu (shows above bubble on long-press) ────────────
 function DeleteMenu({ onDelete, onClose, isMe }) {
   const ref = useRef(null);
 
@@ -49,10 +43,17 @@ function DeleteMenu({ onDelete, onClose, isMe }) {
   }, [onClose]);
 
   return (
-    <div className={`msg-menu ${isMe ? 'msg-menu--right' : 'msg-menu--left'}`} ref={ref} role="menu">
+    <div
+      className={`msg-menu ${isMe ? 'msg-menu--right' : 'msg-menu--left'}`}
+      ref={ref}
+      role="menu"
+    >
       <button className="msg-menu-item msg-menu-item--danger" onClick={onDelete} role="menuitem">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+          <polyline points="3 6 5 6 21 6"/>
+          <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+          <path d="M10 11v6"/><path d="M14 11v6"/>
+          <path d="M9 6V4h6v2"/>
         </svg>
         Delete message
       </button>
@@ -63,8 +64,8 @@ function DeleteMenu({ onDelete, onClose, isMe }) {
   );
 }
 
-// ── Single message bubble ─────────────────────────────────────
-function ChatMessage({ msg, currentUser, isAdminOrCeo, onDelete }) {
+// ── Single message ────────────────────────────────────────────
+function ChatMessage({ msg, currentUser, onDelete }) {
   const sender  = msg.users || {};
   const isMe    = msg.user_id === currentUser?.id;
   const role    = sender.role || 'employee';
@@ -78,16 +79,20 @@ function ChatMessage({ msg, currentUser, isAdminOrCeo, onDelete }) {
   const [longTimer, setLongTimer] = useState(null);
   const [pressing,  setPressing]  = useState(false);
 
-  // Long-press — only open menu on OWN messages
+  // Long-press — only for MY messages
   const startPress = () => {
     if (!isMe) return;
     setPressing(true);
-    const t = setTimeout(() => { setMenuOpen(true); setPressing(false); }, 500);
+    const t = setTimeout(() => {
+      setMenuOpen(true);
+      setPressing(false);
+    }, 500);
     setLongTimer(t);
   };
+
   const cancelPress = () => {
     setPressing(false);
-    clearTimeout(longTimer);
+    if (longTimer) clearTimeout(longTimer);
   };
 
   // Right-click on desktop — own messages only
@@ -105,11 +110,12 @@ function ChatMessage({ msg, currentUser, isAdminOrCeo, onDelete }) {
   return (
     <div className={`chat-msg-wrap ${isMe ? 'chat-msg-me' : 'chat-msg-them'}`}>
 
-      {/* Avatar — only for OTHER people's messages, on the left */}
+      {/* Avatar on the LEFT — only for other people */}
       {!isMe && <Avatar user={sender} size={36} />}
 
       <div className="chat-msg-body">
-        {/* Sender name + role badge — only for others */}
+
+        {/* Name + role badge — only for others */}
         {!isMe && (
           <span className="chat-msg-name" style={{ color }}>
             {name}
@@ -129,12 +135,12 @@ function ChatMessage({ msg, currentUser, isAdminOrCeo, onDelete }) {
           onMouseLeave={cancelPress}
           onTouchStart={startPress}
           onTouchEnd={cancelPress}
+          onTouchCancel={cancelPress}
           onContextMenu={handleContextMenu}
         >
           <span className="chat-bubble-text">{msg.text}</span>
 
-          {/* Delete menu — own messages only */}
-          {menuOpen && isMe && (
+          {menuOpen && (
             <DeleteMenu
               onDelete={handleDelete}
               onClose={() => setMenuOpen(false)}
@@ -143,14 +149,13 @@ function ChatMessage({ msg, currentUser, isAdminOrCeo, onDelete }) {
           )}
         </div>
 
-        <span className={`chat-time ${isMe ? 'chat-time--me' : ''}`}>{timeStr}</span>
+        <span className="chat-time">{timeStr}</span>
       </div>
 
-      {/* NO avatar on the right — my messages have no avatar */}
+      {/* NO avatar on the right for my messages */}
     </div>
   );
 }
-
 
 // ── Main page ─────────────────────────────────────────────────
 export default function GroupChatPage() {
@@ -201,8 +206,6 @@ export default function GroupChatPage() {
     try { await deleteMessage(id); } catch (err) { setError(err.message || 'Failed to delete.'); }
   };
 
-  const isAdminOrCeo = ['admin', 'ceo'].includes(currentUser?.role);
-
   // Group messages by date
   const grouped = messages.reduce((acc, msg) => {
     const d = msg.sent_at ? new Date(msg.sent_at).toISOString().split('T')[0] : 'today';
@@ -213,7 +216,7 @@ export default function GroupChatPage() {
 
   const formatDate = (dateStr) => {
     if (dateStr === 'today') return 'Today';
-    const d = new Date(dateStr);
+    const d         = new Date(dateStr);
     const today     = new Date();
     const yesterday = new Date(); yesterday.setDate(today.getDate() - 1);
     if (d.toDateString() === today.toDateString())     return 'Today';
@@ -223,13 +226,16 @@ export default function GroupChatPage() {
 
   return (
     <div className="chat-layout">
-      {/* ── Header ── */}
+
+      {/* ── Header — group info only, no user avatar ── */}
       <div className="chat-header">
         <div className="chat-header-left">
           <div className="chat-group-icon">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
-              <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+              <circle cx="9" cy="7" r="4"/>
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+              <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
             </svg>
           </div>
           <div>
@@ -237,16 +243,17 @@ export default function GroupChatPage() {
             <p className="chat-group-sub">{messages.length} messages · live</p>
           </div>
         </div>
-        <div className="chat-header-right">
-          <Avatar user={currentUser} size={32} />
-          <span className="chat-header-me">{currentUser?.name?.split(' ')[0]}</span>
-        </div>
+        {/* header-right removed */}
       </div>
 
       {/* ── Error banner ── */}
       {error && (
         <div className="chat-error" role="alert">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
           {error}
         </div>
       )}
@@ -263,7 +270,6 @@ export default function GroupChatPage() {
                 key={msg.id}
                 msg={msg}
                 currentUser={currentUser}
-                isAdminOrCeo={isAdminOrCeo}
                 onDelete={handleDelete}
               />
             ))}
@@ -279,9 +285,8 @@ export default function GroupChatPage() {
         <div ref={bottomRef} />
       </div>
 
-      {/* ── Input bar ── */}
+      {/* ── Input bar — no avatar, just textarea + send ── */}
       <div className="chat-input-bar">
-        <Avatar user={currentUser} size={34} />
         <div className="chat-input-wrap">
           <textarea
             ref={inputRef}
@@ -306,16 +311,18 @@ export default function GroupChatPage() {
             </svg>
           ) : (
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+              <line x1="22" y1="2" x2="11" y2="13"/>
+              <polygon points="22 2 15 22 11 13 2 9 22 2"/>
             </svg>
           )}
         </button>
       </div>
 
-      {/* Long-press hint — shown once, fades out */}
+      {/* Long-press hint */}
       <div className="chat-hint" aria-hidden="true">
         Hold your message to delete it
       </div>
+
     </div>
   );
 }
