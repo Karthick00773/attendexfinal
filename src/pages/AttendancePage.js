@@ -284,32 +284,52 @@ export default function AttendancePage() {
   };
 
   // Break toggle
-  const handleBreak = async () => {
-    setBreakLoading(true);
-    setError('');
-    try {
-      if (isBreak) {
-        await endBreak();
-      } else {
-        await startBreak();
-      }
-      await fetchTodayAttendance();
-    } catch (err) {
-      const raw   = err?.message || '';
-      const lower = raw.toLowerCase();
-      if (lower.includes('network') || lower.includes('fetch')) {
-        setError('Network error. Please check your connection and try again.');
-      } else if (lower.includes('already')) {
-        // Server state already matched — resync silently
-      } else {
-        setError(raw || 'Could not update break status. Please try again.');
-      }
-      try { await fetchTodayAttendance(); } catch (_) {}
-    } finally {
-      setBreakLoading(false);
-    }
-  };
+// ============================================================
+//  COPY THIS handleBreak function into your AttendancePage.jsx
+//  Replace your existing handleBreak function with this one.
+// ============================================================
 
+const handleBreak = async () => {
+  setBreakLoading(true);
+  setError('');
+  try {
+    if (isBreak) {
+      await endBreak();
+    } else {
+      await startBreak();
+    }
+    // Always re-fetch so UI matches server state
+    await fetchTodayAttendance();
+
+  } catch (err) {
+    // ── 409 Conflict ─────────────────────────────────────────
+    // Server says "already on break" or "already resumed".
+    // This means frontend is out of sync with backend.
+    // Fix: silently re-fetch today's record — this will correct
+    // isBreak so the button shows the right state.
+    if (err.status === 409 || err.conflict) {
+      setError(''); // no error message shown to user
+      try { await fetchTodayAttendance(); } catch (_) {}
+      return;
+    }
+
+    // ── Network error ─────────────────────────────────────────
+    const raw   = err?.message || '';
+    const lower = raw.toLowerCase();
+    if (lower.includes('network') || lower.includes('fetch') || lower.includes('failed to fetch')) {
+      setError('Network error. Please check your connection and try again.');
+      return;
+    }
+
+    // ── All other errors ──────────────────────────────────────
+    setError(raw || 'Could not update break status. Please try again.');
+    // Still resync so UI is not stuck
+    try { await fetchTodayAttendance(); } catch (_) {}
+
+  } finally {
+    setBreakLoading(false);
+  }
+};
   // Break display helpers
   const totalBreakMinutes = today
     ? (today.break_minutes || 0) +

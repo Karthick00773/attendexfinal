@@ -9,7 +9,7 @@ import { mockApi } from './mockData';
 const USE_MOCK = process.env.REACT_APP_USE_MOCK === 'true';
 const BASE     = process.env.REACT_APP_API_URL || 'http://localhost:4000';
 
-const IK_PUBLIC_KEY   = process.env.REACT_APP_IMAGEKIT_PUBLIC_KEY   || '';
+const IK_PUBLIC_KEY = process.env.REACT_APP_IMAGEKIT_PUBLIC_KEY || '';
 
 export function getToken() {
   return localStorage.getItem('attendx_token');
@@ -21,17 +21,16 @@ async function request(method, path, body) {
   if (token) headers['Authorization'] = `Bearer ${token}`;
   const opts = { method, headers };
   if (body !== undefined) opts.body = JSON.stringify(body);
+
   const res  = await fetch(`${BASE}${path}`, opts);
   const data = await res.json().catch(() => ({}));
 
-  // Handle 401 responses with special contract from backend
+  // ── 401 — token expired or unauthorized ──────────────────
   if (res.status === 401) {
-    // If token expired, attempt silent refresh then retry once
     if (data && data.expired) {
       try {
         const refreshToken = localStorage.getItem('attendx_refresh');
         if (refreshToken) {
-          // Try to refresh access token
           const refreshRes = await fetch(`${BASE}/api/auth/refresh`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -40,45 +39,57 @@ async function request(method, path, body) {
           const refreshData = await refreshRes.json().catch(() => ({}));
           if (refreshRes.ok && refreshData.access_token) {
             localStorage.setItem('attendx_token', refreshData.access_token);
-            if (refreshData.refresh_token) localStorage.setItem('attendx_refresh', refreshData.refresh_token);
+            if (refreshData.refresh_token) {
+              localStorage.setItem('attendx_refresh', refreshData.refresh_token);
+            }
             // Retry original request with new token
-            const retryToken = getToken();
             const retryHeaders = { 'Content-Type': 'application/json' };
-            if (retryToken) retryHeaders['Authorization'] = `Bearer ${retryToken}`;
+            retryHeaders['Authorization'] = `Bearer ${refreshData.access_token}`;
             const retryOpts = { method, headers: retryHeaders };
             if (body !== undefined) retryOpts.body = JSON.stringify(body);
-            const retryRes = await fetch(`${BASE}${path}`, retryOpts);
+            const retryRes  = await fetch(`${BASE}${path}`, retryOpts);
             const retryData = await retryRes.json().catch(() => ({}));
             if (!retryRes.ok) {
               const err = new Error(retryData.error || `HTTP ${retryRes.status}`);
               err.status = retryRes.status;
-              err.data = retryData;
+              err.data   = retryData;
               throw err;
             }
             return retryData;
           }
         }
       } catch (e) {
-        // fallthrough to final 401 handling below
+        // fallthrough to final 401 handling
       }
     }
-
-    // All other 401s or failed refresh: clear tokens and redirect to login
     localStorage.removeItem('attendx_token');
     localStorage.removeItem('attendx_refresh');
     try { window.location.href = '/login'; } catch (_) {}
     const err = new Error(data.error || 'Unauthorized');
     err.status = 401;
-    err.data = data;
+    err.data   = data;
     throw err;
   }
 
+  // ── 409 Conflict — already on break / already resumed ────
+  // Instead of throwing, return a structured conflict object.
+  // The caller checks result.conflict === true and resyncs.
+  if (res.status === 409) {
+    const err = new Error(data.error || data.message || 'Conflict — state already matches.');
+    err.status  = 409;
+    err.data    = data;
+    err.conflict = true;
+    throw err;
+  }
+
+  // ── All other non-OK responses ────────────────────────────
   if (!res.ok) {
-    const err = new Error(data.error || `HTTP ${res.status}`);
+    const err = new Error(data.error || data.message || `HTTP ${res.status}`);
     err.status = res.status;
     err.data   = data;
     throw err;
   }
+
   return data;
 }
 
@@ -88,7 +99,7 @@ export async function getImageKitAuth() {
 
 export async function uploadPhotoToImageKit(file, folder = 'attendance') {
   if (!file) return null;
-  const auth = await getImageKitAuth();
+  const auth     = await getImageKitAuth();
   const formData = new FormData();
   formData.append('file',      file);
   formData.append('fileName',  `${folder}_${Date.now()}_${file.name}`);
@@ -105,32 +116,37 @@ export async function uploadPhotoToImageKit(file, folder = 'attendance') {
 
 // ── Auth ──────────────────────────────────────────────────────
 export const auth = USE_MOCK ? mockApi.auth : {
-  login:         (email, password) => request('POST',  '/api/auth/login',          { email, password }),
+  login:         (email, password) => request('POST',  '/api/auth/login',         { email, password }),
   logout:        ()                => request('POST',  '/api/auth/logout'),
   me:            ()                => request('GET',   '/api/auth/me'),
-  resetPassword: (new_password)   => request('PATCH', '/api/auth/reset-password',  { new_password }),
-  refresh:       (refresh_token)  => request('POST',  '/api/auth/refresh',       { refresh_token }),
+  resetPassword: (new_password)    => request('PATCH', '/api/auth/reset-password', { new_password }),
+  refresh:       (refresh_token)   => request('POST',  '/api/auth/refresh',        { refresh_token }),
 };
 
 // ── Users ─────────────────────────────────────────────────────
 export const users = USE_MOCK ? mockApi.users : {
-  list:               ()            => request('GET',    '/api/users'),
-  create:             (payload)     => request('POST',   '/api/users',                    payload),
-  get:                (id)          => request('GET',    `/api/users/${id}`),
-  update:             (id, data)    => request('PUT',    `/api/users/${id}`,              data),
-  deactivate:         (id)          => request('DELETE', `/api/users/${id}`),
-  uploadProfilePhoto: (photo_url)   => request('PATCH',  '/api/users/me/profile-photo',  { photo_url }),
+  list:               ()           => request('GET',    '/api/users'),
+  create:             (payload)    => request('POST',   '/api/users',                   payload),
+  get:                (id)         => request('GET',    `/api/users/${id}`),
+  update:             (id, data)   => request('PUT',    `/api/users/${id}`,             data),
+  deactivate:         (id)         => request('DELETE', `/api/users/${id}`),
+  uploadProfilePhoto: (photo_url)  => request('PATCH',  '/api/users/me/profile-photo', { photo_url }),
 };
 
 // ── Attendance ────────────────────────────────────────────────
 // Backend expects JSON body: { lat, lng, photo_url }
 // photo_url must be an ImageKit CDN URL — upload photo first!
 export const attendance = USE_MOCK ? mockApi.attendance : {
-  checkIn:    (lat, lng, photo_url) => request('POST', '/api/attendance/checkin',  { lat, lng, photo_url }),
-  checkOut:   (lat, lng, photo_url) => request('POST', '/api/attendance/checkout', { lat, lng, photo_url }),
-  startBreak: ()                    => request('POST', '/api/attendance/break/start'),
-  endBreak:   ()                    => request('POST', '/api/attendance/break/end'),
-  getToday:   ()                    => request('GET',  '/api/attendance/today'),
+  checkIn:    (lat, lng, photo_url) => request('POST', '/api/attendance/checkin',     { lat, lng, photo_url }),
+  checkOut:   (lat, lng, photo_url) => request('POST', '/api/attendance/checkout',    { lat, lng, photo_url }),
+
+  // startBreak / endBreak — 409 means state already matches on server.
+  // The error has err.conflict = true so the component can silently resync
+  // via fetchTodayAttendance() instead of showing a confusing error message.
+  startBreak: () => request('POST', '/api/attendance/break/start'),
+  endBreak:   () => request('POST', '/api/attendance/break/end'),
+
+  getToday:   () => request('GET',  '/api/attendance/today'),
   getSummary: (month, userId) => {
     const qs = new URLSearchParams();
     if (month)  qs.set('month',   month);
@@ -154,7 +170,7 @@ export const attendance = USE_MOCK ? mockApi.attendance : {
 
 // ── Leaves ────────────────────────────────────────────────────
 export const leaves = USE_MOCK ? mockApi.leaves : {
-  apply:   (payload) => request('POST',   '/api/leaves',             payload),
+  apply:   (payload) => request('POST',   '/api/leaves',                            payload),
   list:    (status)  => request('GET',    `/api/leaves${status ? `?status=${status}` : ''}`),
   get:     (id)      => request('GET',    `/api/leaves/${id}`),
   approve: (id)      => request('PATCH',  `/api/leaves/${id}/approve`),
@@ -165,8 +181,8 @@ export const leaves = USE_MOCK ? mockApi.leaves : {
 // ── Chat ──────────────────────────────────────────────────────
 export const chat = USE_MOCK ? mockApi.chat : {
   getMessages:   (page = 1, limit = 50) => request('GET',    `/api/chat/messages?page=${page}&limit=${limit}`),
-  sendMessage:   (text)  => request('POST',   '/api/chat/messages',     { text }),
-  deleteMessage: (id)    => request('DELETE', `/api/chat/messages/${id}`),
+  sendMessage:   (text) => request('POST',   '/api/chat/messages',      { text }),
+  deleteMessage: (id)   => request('DELETE', `/api/chat/messages/${id}`),
 };
 
 // ── Notifications ─────────────────────────────────────────────
@@ -182,9 +198,9 @@ export const dashboard = USE_MOCK ? mockApi.dashboard : {
   overview: (month) => request('GET', `/api/dashboard/overview${month ? `?month=${month}` : ''}`),
 };
 
-// ── Tasks (NEW — full backend feature) ───────────────────────
+// ── Tasks ─────────────────────────────────────────────────────
 export const tasks = {
-  list:             (filters = {}) => {
+  list: (filters = {}) => {
     const qs = new URLSearchParams();
     if (filters.status)   qs.set('status',   filters.status);
     if (filters.priority) qs.set('priority', filters.priority);
