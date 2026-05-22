@@ -1,6 +1,8 @@
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
+import { useScreenMonitor } from '../context/ScreenMonitorContext';
+import ScreenPermissionModal from '../components/ScreenPermissionModal';
 import './HomePage.css';
 
 function StatCard({ label, value, sub, color, icon }) {
@@ -34,6 +36,30 @@ function AttendanceMiniCard({ emp }) {
   );
 }
 
+/* ── Recording status pill shown in the top-bar ── */
+function RecordingPill({ canCheckIn, permissionState }) {
+  if (permissionState === 'pending' || permissionState === 'idle') return null;
+
+  if (canCheckIn) {
+    return (
+      <div className="screen-monitor-banner banner-active" style={{ marginBottom: 0, padding: '6px 12px', borderRadius: 20 }}>
+        <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--green)', display:'inline-block', animation:'spm-blink 1.2s ease-in-out infinite' }} />
+        Screen Monitored
+      </div>
+    );
+  }
+
+  return (
+    <div className="screen-monitor-banner banner-denied" style={{ marginBottom: 0, padding: '6px 12px', borderRadius: 20 }}>
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="10"/>
+        <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+      </svg>
+      Check-In Disabled
+    </div>
+  );
+}
+
 export default function HomePage() {
   const {
     currentUser,
@@ -42,6 +68,9 @@ export default function HomePage() {
     notifList, unreadCount, fetchNotifications, markAllNotifRead,
     allEmployeesToday, fetchAllEmployeesToday,
   } = useApp();
+
+  const { canCheckIn, permissionState, statusMsg } = useScreenMonitor();
+
   const navigate = useNavigate();
   const now      = new Date();
   const timeStr  = now.toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit', hour12:true });
@@ -77,20 +106,51 @@ export default function HomePage() {
     return 'Good Evening';
   };
 
+  /* Attendance button — blocked when screen not recording */
+  const handleAttendanceClick = () => {
+    if (!isAdminOrCeo && !canCheckIn) {
+      // Show a brief toast / alert — or you can wire this to your toast system
+      alert('Screen recording is required to check in. Please reload and allow screen sharing.');
+      return;
+    }
+    navigate(currentUser?.role === 'employee' ? '/attendance' : '/attendance/manage');
+  };
+
   return (
     <div className="page animate-fadeup">
+      {/* ── The permission modal renders here (global portal-like) ── */}
+      <ScreenPermissionModal />
+
       <div className="home-topbar">
         <div>
           <h1 className="home-greeting">{greet()}, {currentUser?.name?.split(' ')[0]} 👋</h1>
           <p className="home-date">{dateStr}</p>
         </div>
-        <div className="home-time-pill">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-          </svg>
-          {timeStr}
+        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+          {/* Recording status pill */}
+          {!isAdminOrCeo && (
+            <RecordingPill canCheckIn={canCheckIn} permissionState={permissionState} />
+          )}
+          <div className="home-time-pill">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+            </svg>
+            {timeStr}
+          </div>
         </div>
       </div>
+
+      {/* Denied / stopped banner */}
+      {!isAdminOrCeo && (permissionState === 'denied' || permissionState === 'stopped') && (
+        <div className="screen-monitor-banner banner-denied">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/>
+            <line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+          {statusMsg || 'Screen recording is not active. Check-In is disabled for this session.'}
+        </div>
+      )}
 
       {/* Stats — employee only */}
       {!isAdminOrCeo && (
@@ -221,12 +281,28 @@ export default function HomePage() {
         <div className="card home-quick-card">
           <h3 className="card-title">Quick Actions</h3>
           <div className="quick-actions">
-            <button className="quick-action-btn" onClick={() => navigate(currentUser?.role === 'employee' ? '/attendance' : '/attendance/manage')}>
-              <span className="quick-action-icon" style={{ background:'var(--lavender)', color:'var(--accent)' }}>
+            {/* Attendance — locked for employees without recording */}
+            <button
+              className="quick-action-btn"
+              onClick={handleAttendanceClick}
+              style={!isAdminOrCeo && !canCheckIn ? { opacity: 0.45, cursor: 'not-allowed' } : {}}
+              title={!isAdminOrCeo && !canCheckIn ? 'Enable screen recording to check in' : undefined}
+            >
+              <span className="quick-action-icon" style={{ background:'var(--lavender)', color:'var(--accent)', position:'relative' }}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                {/* Lock overlay if check-in disabled */}
+                {!isAdminOrCeo && !canCheckIn && (
+                  <span style={{ position:'absolute', bottom:-3, right:-3, background:'#ef4444', borderRadius:'50%', width:14, height:14, display:'flex', alignItems:'center', justifyContent:'center' }}>
+                    <svg width="8" height="8" viewBox="0 0 24 24" fill="white" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                      <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                    </svg>
+                  </span>
+                )}
               </span>
               <span>Attendance</span>
             </button>
+
             <button className="quick-action-btn" onClick={() => navigate('/tasks')}>
               <span className="quick-action-icon" style={{ background:'#fef3c7', color:'#d97706' }}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
