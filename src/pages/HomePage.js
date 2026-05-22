@@ -1,7 +1,6 @@
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
-import ScreenPermissionModal from '../components/ScreenPermissionModal';
 import './HomePage.css';
 
 function StatCard({ label, value, sub, color, icon }) {
@@ -118,7 +117,6 @@ export default function HomePage() {
   return (
     <div className="page animate-fadeup">
       {/* ── The permission modal renders here (global portal-like) ── */}
-      <ScreenPermissionModal />
 
       <div className="home-topbar">
         <div>
