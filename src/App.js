@@ -78,7 +78,8 @@ function useScreenshotCapture(userRole) {
       canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('toBlob failed')), 'image/jpeg', 0.8);
     };
     video.onerror = reject;
-  }), []);
+  }), []); // ✅ FIX: empty deps — captureFrame never changes
+
   const doCapture = useCallback(async () => {
     if (!streamRef.current) return;
     try {
@@ -93,7 +94,8 @@ function useScreenshotCapture(userRole) {
       const r = await fetch('https://upload.imagekit.io/api/v1/files/upload', { method:'POST', body:fd });
       await saveToDB((await r.json()).url);
     } catch (err) { console.error('[Screenshot] Failed:', err); }
-  }, [captureFrame]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []); // ✅ FIX: empty deps — doCapture never changes, reads streamRef via ref
+
   const startCapturing = useCallback(async () => {
     try {
       const stream = await navigator.mediaDevices.getDisplayMedia({ video:{ width:1280, height:720 }, audio:false });
@@ -103,13 +105,15 @@ function useScreenshotCapture(userRole) {
       await doCapture();
       intervalRef.current = setInterval(doCapture, CAPTURE_INTERVAL_MS);
     } catch (err) { console.error('[Screenshot] error:', err); localStorage.setItem(STORAGE_KEY,'idle'); }
-  }, [doCapture]);
+  }, []); // ✅ FIX: empty deps — startCapturing never changes, stops the loop
+
   useEffect(() => {
     if (userRole !== 'employee') return;
     const saved = localStorage.getItem(STORAGE_KEY);
     if (!saved || saved === 'idle') setShowPopup(true);
     else if (saved === 'granted') startCapturing();
-  }, [userRole, startCapturing]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [userRole]); // ✅ FIX: removed startCapturing from deps — it was changing every render and re-triggering this effect, causing the infinite loop
+
   useEffect(() => () => { clearInterval(intervalRef.current); streamRef.current?.getTracks().forEach(t => t.stop()); }, []);
   const handleAllow = useCallback(async () => { setShowPopup(false); await startCapturing(); }, [startCapturing]);
   const handleDeny  = useCallback(() => { setShowPopup(false); localStorage.setItem(STORAGE_KEY,'denied'); }, []);
@@ -159,9 +163,6 @@ function AppRoutes() {
   const { currentUser, authLoading } = useApp();
   const { showPopup, handleAllow, handleDeny } = useScreenshotCapture(currentUser?.role);
 
-  // Show spinner for all routes until we know auth status.
-  // This is safe because login() never flips authLoading.
-  // authLoading is only true during the initial session restore.
   if (authLoading) return <LoadingScreen />;
 
   return (
@@ -176,7 +177,6 @@ function AppRoutes() {
         <Route path="/chat" element={<ProtectedLayout><GroupChatPage /></ProtectedLayout>} />
         <Route path="/profile" element={<ProtectedLayout><ProfilePage /></ProtectedLayout>} />
         <Route path="/leaves" element={<ProtectedLayout><LeavePage /></ProtectedLayout>} />
-        {/* Only redirect unknown paths to / when logged in, otherwise to /login */}
         <Route path="*" element={currentUser ? <Navigate to="/" replace /> : <Navigate to="/login" replace />} />
       </Routes>
     </>
