@@ -57,7 +57,6 @@ export default function ProfilePage() {
   );
 
   const joinDate = currentUser?.join_date ? new Date(currentUser.join_date) : null;
-  const now      = new Date();
 
   const handleSaveProfile = async (e) => {
     e.preventDefault();
