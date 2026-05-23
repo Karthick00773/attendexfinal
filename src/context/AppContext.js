@@ -32,23 +32,20 @@ export function AppProvider({ children }) {
   const bootstrapUserData = useCallback(async (user) => {
     if (!user) return;
     const isAdminOrCeo = ['admin', 'ceo'].includes(user.role);
-    try {
-      // Fire all needed requests in parallel
-      const promises = [
-        api.dashboard.me().then(data => setDashboardStats(data)).catch(() => {}),
-        api.notifications.list().then(data => {
-          setNotifList(data.notifications || []);
-          setUnreadCount(data.unread_count || 0);
-        }).catch(() => {}),
-      ];
-      if (isAdminOrCeo) {
-        promises.push(
-          api.dashboard.overview().then(data => setAdminOverview(data)).catch(() => {}),
-          api.attendance.getAllToday().then(data => setAllEmployeesToday(data.employees || [])).catch(() => {}),
-        );
-      }
-      await Promise.all(promises);
-    } catch (_) {}
+    const promises = [
+      api.dashboard.me().then(data => setDashboardStats(data)).catch(() => {}),
+      api.notifications.list().then(data => {
+        setNotifList(data.notifications || []);
+        setUnreadCount(data.unread_count || 0);
+      }).catch(() => {}),
+    ];
+    if (isAdminOrCeo) {
+      promises.push(
+        api.dashboard.overview().then(data => setAdminOverview(data)).catch(() => {}),
+        api.attendance.getAllToday().then(data => setAllEmployeesToday(data.employees || [])).catch(() => {}),
+      );
+    }
+    await Promise.all(promises);
   }, []);
 
   // ── Restore session on mount ──────────────────────────────────
@@ -58,7 +55,6 @@ export function AppProvider({ children }) {
     api.auth.me()
       .then(async data => {
         setCurrentUser(data.user);
-        // Pre-fetch dashboard data on refresh/session restore
         await bootstrapUserData(data.user);
       })
       .catch(() => {
@@ -78,12 +74,18 @@ export function AppProvider({ children }) {
       setForceReset(true);
       return { success: true, forceReset: true };
     }
+    // KEY FIX: set authLoading=true BEFORE setting currentUser.
+    // This means ProtectedLayout shows <LoadingScreen> while bootstrap
+    // runs, so HomePage never mounts with empty dashboardStats.
+    // authLoading flips back to false only after all data is ready.
+    setAuthLoading(true);
     setCurrentUser(data.user);
     setForceReset(false);
-    // ── KEY FIX: pre-fetch dashboard data immediately after login ──
-    // This runs before the router navigates to HomePage, so the page
-    // always has data on first render — no blank screen, no need to refresh.
-    await bootstrapUserData(data.user);
+    try {
+      await bootstrapUserData(data.user);
+    } finally {
+      setAuthLoading(false);
+    }
     return { success: true };
   };
 
@@ -140,15 +142,10 @@ export function AppProvider({ children }) {
     const coords = await getCoords();
     const lat    = coords?.latitude  ?? null;
     const lng    = coords?.longitude ?? null;
-
     if (!lat || !lng) throw new Error('GPS coordinates are required. Please allow location access.');
-
     let photo_url = null;
-    if (photoFile) {
-      photo_url = await uploadPhotoToImageKit(photoFile, 'checkin');
-    }
+    if (photoFile) photo_url = await uploadPhotoToImageKit(photoFile, 'checkin');
     if (!photo_url) throw new Error('A check-in photo is required. Please take a photo.');
-
     const data = await api.attendance.checkIn(lat, lng, photo_url);
     setTodayRecord(data.attendance);
     return data;
@@ -158,15 +155,10 @@ export function AppProvider({ children }) {
     const coords = await getCoords();
     const lat    = coords?.latitude  ?? null;
     const lng    = coords?.longitude ?? null;
-
     if (!lat || !lng) throw new Error('GPS coordinates are required. Please allow location access.');
-
     let photo_url = null;
-    if (photoFile) {
-      photo_url = await uploadPhotoToImageKit(photoFile, 'checkout');
-    }
+    if (photoFile) photo_url = await uploadPhotoToImageKit(photoFile, 'checkout');
     if (!photo_url) throw new Error('A check-out photo is required. Please take a photo.');
-
     const data = await api.attendance.checkOut(lat, lng, photo_url);
     setTodayRecord(data.attendance);
     return data;
