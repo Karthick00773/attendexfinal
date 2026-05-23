@@ -78,7 +78,7 @@ function useScreenshotCapture(userRole) {
       canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('toBlob failed')), 'image/jpeg', 0.8);
     };
     video.onerror = reject;
-  }), []); // ✅ FIX: empty deps — captureFrame never changes
+  }), []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const doCapture = useCallback(async () => {
     if (!streamRef.current) return;
@@ -94,7 +94,7 @@ function useScreenshotCapture(userRole) {
       const r = await fetch('https://upload.imagekit.io/api/v1/files/upload', { method:'POST', body:fd });
       await saveToDB((await r.json()).url);
     } catch (err) { console.error('[Screenshot] Failed:', err); }
-  }, []); // ✅ FIX: empty deps — doCapture never changes, reads streamRef via ref
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const startCapturing = useCallback(async () => {
     try {
@@ -105,14 +105,14 @@ function useScreenshotCapture(userRole) {
       await doCapture();
       intervalRef.current = setInterval(doCapture, CAPTURE_INTERVAL_MS);
     } catch (err) { console.error('[Screenshot] error:', err); localStorage.setItem(STORAGE_KEY,'idle'); }
-  }, []); // ✅ FIX: empty deps — startCapturing never changes, stops the loop
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (userRole !== 'employee') return;
     const saved = localStorage.getItem(STORAGE_KEY);
     if (!saved || saved === 'idle') setShowPopup(true);
     else if (saved === 'granted') startCapturing();
-  }, [userRole]); // ✅ FIX: removed startCapturing from deps — it was changing every render and re-triggering this effect, causing the infinite loop
+  }, [userRole]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => () => { clearInterval(intervalRef.current); streamRef.current?.getTracks().forEach(t => t.stop()); }, []);
   const handleAllow = useCallback(async () => { setShowPopup(false); await startCapturing(); }, [startCapturing]);
