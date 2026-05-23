@@ -146,7 +146,11 @@
   color: #92400e;
   font-size: 0.9rem;
   margin-bottom: 20px;
-  animation: pulse 2s ease-in-out infinite;
+  transition: box-shadow 0.2s ease;
+}
+
+.break-banner:hover {
+  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
 }
 
 .gps-msg {

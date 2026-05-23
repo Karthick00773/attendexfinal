@@ -284,52 +284,35 @@ export default function AttendancePage() {
   };
 
   // Break toggle
-// ============================================================
-//  COPY THIS handleBreak function into your AttendancePage.jsx
-//  Replace your existing handleBreak function with this one.
-// ============================================================
-
-const handleBreak = async () => {
-  setBreakLoading(true);
-  setError('');
-  try {
-    if (isBreak) {
-      await endBreak();
-    } else {
-      await startBreak();
-    }
-    // Always re-fetch so UI matches server state
-    await fetchTodayAttendance();
-
-  } catch (err) {
-    // ── 409 Conflict ─────────────────────────────────────────
-    // Server says "already on break" or "already resumed".
-    // This means frontend is out of sync with backend.
-    // Fix: silently re-fetch today's record — this will correct
-    // isBreak so the button shows the right state.
-    if (err.status === 409 || err.conflict) {
-      setError(''); // no error message shown to user
+  const handleBreak = async () => {
+    setBreakLoading(true);
+    setError('');
+    try {
+      if (isBreak) {
+        await endBreak();
+      } else {
+        await startBreak();
+      }
+      await fetchTodayAttendance();
+    } catch (err) {
+      if (err.status === 409 || err.conflict) {
+        setError('');
+        try { await fetchTodayAttendance(); } catch (_) {}
+        return;
+      }
+      const raw   = err?.message || '';
+      const lower = raw.toLowerCase();
+      if (lower.includes('network') || lower.includes('fetch') || lower.includes('failed to fetch')) {
+        setError('Network error. Please check your connection and try again.');
+        return;
+      }
+      setError(raw || 'Could not update break status. Please try again.');
       try { await fetchTodayAttendance(); } catch (_) {}
-      return;
+    } finally {
+      setBreakLoading(false);
     }
+  };
 
-    // ── Network error ─────────────────────────────────────────
-    const raw   = err?.message || '';
-    const lower = raw.toLowerCase();
-    if (lower.includes('network') || lower.includes('fetch') || lower.includes('failed to fetch')) {
-      setError('Network error. Please check your connection and try again.');
-      return;
-    }
-
-    // ── All other errors ──────────────────────────────────────
-    setError(raw || 'Could not update break status. Please try again.');
-    // Still resync so UI is not stuck
-    try { await fetchTodayAttendance(); } catch (_) {}
-
-  } finally {
-    setBreakLoading(false);
-  }
-};
   // Break display helpers
   const totalBreakMinutes = today
     ? (today.break_minutes || 0) +
@@ -384,7 +367,23 @@ const handleBreak = async () => {
 
       <div className="card attend-main-card">
         <div className="attend-header">
-          <div className="attend-avatar avatar avatar-xl">{currentUser?.avatar_initials}</div>
+
+          {/* ── Avatar: shows profile photo if available, else initials ── */}
+          <div
+            className="attend-avatar avatar avatar-xl"
+            style={{ overflow: 'hidden', padding: currentUser?.profile_photo_url ? 0 : undefined }}
+          >
+            {currentUser?.profile_photo_url ? (
+              <img
+                src={currentUser.profile_photo_url}
+                alt={currentUser?.name}
+                style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'inherit' }}
+              />
+            ) : (
+              currentUser?.avatar_initials
+            )}
+          </div>
+
           <div className="attend-info">
             <h3>{currentUser?.name}</h3>
             <p>{currentUser?.designation} · {currentUser?.department}</p>
