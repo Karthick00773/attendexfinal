@@ -159,9 +159,9 @@ function AppRoutes() {
   const { currentUser, authLoading } = useApp();
   const { showPopup, handleAllow, handleDeny } = useScreenshotCapture(currentUser?.role);
 
-  // While auth is still resolving, show spinner for ALL routes.
-  // This prevents the * catch-all from firing before we know
-  // if the user is logged in — which caused the redirect loop.
+  // Show spinner for all routes until we know auth status.
+  // This is safe because login() never flips authLoading.
+  // authLoading is only true during the initial session restore.
   if (authLoading) return <LoadingScreen />;
 
   return (
@@ -176,7 +176,8 @@ function AppRoutes() {
         <Route path="/chat" element={<ProtectedLayout><GroupChatPage /></ProtectedLayout>} />
         <Route path="/profile" element={<ProtectedLayout><ProfilePage /></ProtectedLayout>} />
         <Route path="/leaves" element={<ProtectedLayout><LeavePage /></ProtectedLayout>} />
-        <Route path="*" element={<Navigate to="/" replace />} />
+        {/* Only redirect unknown paths to / when logged in, otherwise to /login */}
+        <Route path="*" element={currentUser ? <Navigate to="/" replace /> : <Navigate to="/login" replace />} />
       </Routes>
     </>
   );

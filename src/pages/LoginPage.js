@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import './LoginPage.css';
 
 export default function LoginPage() {
   const { login, resetPassword, forceReset } = useApp();
-  const navigate = useNavigate();
+  // No useNavigate — navigation is handled by the route guard in App.js.
+  // When login() sets currentUser, the route guard
+  // (currentUser ? <Navigate to="/" /> : <LoginPage />) redirects automatically.
+  // Calling navigate() here at the same time caused the redirect loop.
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -24,13 +27,11 @@ export default function LoginPage() {
     setError('');
     setLoading(true);
     try {
-      const result = await login(email, password);
-      // login() calls bootstrapUserData() in background (fire-and-forget).
-      // currentUser is now set, so the route guard
-      // (currentUser ? <Navigate to="/" /> : <LoginPage />) kicks in
-      // and redirects automatically. We still call navigate here as a
-      // fallback in case the route guard hasn't re-evaluated yet.
-      if (!result.forceReset) navigate('/');
+      await login(email, password);
+      // DO NOT call navigate('/') here.
+      // login() sets currentUser in context.
+      // React re-renders AppRoutes, the route guard sees currentUser is set,
+      // and renders <Navigate to="/" replace /> — clean, no loop.
     } catch (err) {
       setError(err.message || 'Invalid email or password. Please try again.');
     } finally {
@@ -45,7 +46,8 @@ export default function LoginPage() {
     setLoading(true); setError('');
     try {
       await resetPassword(newPassword);
-      navigate('/');
+      // resetPassword sets currentUser and forceReset=false.
+      // Route guard handles redirect automatically.
     } catch (err) {
       setError(err.message || 'Password reset failed. Please try again.');
     } finally {
