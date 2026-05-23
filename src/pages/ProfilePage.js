@@ -58,12 +58,6 @@ export default function ProfilePage() {
 
   const joinDate = currentUser?.join_date ? new Date(currentUser.join_date) : null;
   const now      = new Date();
-  let tenure = '—';
-  if (joinDate) {
-    const yrs = Math.floor((now - joinDate) / (1000*60*60*24*365));
-    const mos = Math.floor(((now - joinDate) / (1000*60*60*24*30)) % 12);
-    tenure = yrs > 0 ? `${yrs}y ${mos}m` : `${mos} months`;
-  }
 
   const handleSaveProfile = async (e) => {
     e.preventDefault();

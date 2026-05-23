@@ -60,6 +60,7 @@ export default function HomePage() {
       fetchAdminOverview();
       fetchAllEmployeesToday();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser?.id, isAdminOrCeo]); // re-runs on login / role change
 
   const summary = dashboardStats?.month_summary || {};
