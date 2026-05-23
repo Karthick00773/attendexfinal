@@ -49,15 +49,18 @@ export default function HomePage() {
 
   const isAdminOrCeo = ['admin','ceo'].includes(currentUser?.role);
 
+  // ── Re-fetch everything whenever the logged-in user changes ──
   useEffect(() => {
+    if (!currentUser) return; // wait until user is loaded
+
     fetchDashboard();
     fetchNotifications();
+
     if (isAdminOrCeo) {
       fetchAdminOverview();
       fetchAllEmployeesToday();
     }
-    // eslint-disable-next-line
-  }, []);
+  }, [currentUser?.id, isAdminOrCeo]); // re-runs on login / role change
 
   const summary = dashboardStats?.month_summary || {};
   const user    = dashboardStats?.user || currentUser;

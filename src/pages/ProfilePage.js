@@ -28,11 +28,11 @@ export default function ProfilePage() {
     attendanceHistory, fetchAttendanceHistory,
   } = useApp();
 
-  const [tab, setTab]         = useState('overview');
+  const [tab, setTab]           = useState('overview');
   const [editMode, setEditMode] = useState(false);
   const [editForm, setEditForm] = useState({ phone:'', designation:'' });
-  const [saving, setSaving]   = useState(false);
-  const [saveMsg, setSaveMsg] = useState('');
+  const [saving, setSaving]     = useState(false);
+  const [saveMsg, setSaveMsg]   = useState('');
   const [saveError, setSaveError] = useState('');
   const [photoUploading, setPhotoUploading] = useState(false);
   const fileRef = useRef(null);
@@ -49,7 +49,6 @@ export default function ProfilePage() {
   const summary     = monthlySummary || {};
   const presentDays = summary.present_days || 0;
 
-  // Real backend: paid_leaves_total / paid_leaves_used
   const totalLeaves = currentUser?.paid_leaves_total ?? currentUser?.total_leaves ?? 0;
   const usedLeaves  = currentUser?.paid_leaves_used  ?? currentUser?.used_leaves  ?? 0;
 
@@ -130,7 +129,6 @@ export default function ProfilePage() {
               <div className="phs-divider" />
               <div className="profile-hero-stat"><span className="phs-val">{totalLeaves - usedLeaves}</span><span className="phs-label">Leaves Left</span></div>
               <div className="phs-divider" />
-              <div className="profile-hero-stat"><span className="phs-val">{tenure}</span><span className="phs-label">Tenure</span></div>
             </div>
           )}
         </div>
@@ -179,29 +177,32 @@ export default function ProfilePage() {
             )}
           </div>
 
-          <div className="card profile-card">
-            <h3 className="card-title">Leave Summary</h3>
-            <div className="leave-summary">
-              <div className="leave-circle" style={{ '--role-color': roleColor[currentUser?.role]||'#7c3aed' }}>
-                <svg viewBox="0 0 100 100" className="leave-ring-svg">
-                  <circle cx="50" cy="50" r="40" fill="none" stroke="var(--border)" strokeWidth="8"/>
-                  <circle cx="50" cy="50" r="40" fill="none" stroke={roleColor[currentUser?.role]||'#7c3aed'} strokeWidth="8"
-                    strokeDasharray={`${2*Math.PI*40}`}
-                    strokeDashoffset={`${totalLeaves > 0 ? 2*Math.PI*40*(1 - usedLeaves/totalLeaves) : 2*Math.PI*40}`}
-                    strokeLinecap="round" transform="rotate(-90 50 50)" />
-                </svg>
-                <div className="leave-circle-inner">
-                  <span className="leave-circle-val">{totalLeaves - usedLeaves}</span>
-                  <span className="leave-circle-sub">Remaining</span>
+          {/* Leave Summary — employees only */}
+          {showEmployeeDetails && (
+            <div className="card profile-card">
+              <h3 className="card-title">Leave Summary</h3>
+              <div className="leave-summary">
+                <div className="leave-circle" style={{ '--role-color': roleColor[currentUser?.role]||'#7c3aed' }}>
+                  <svg viewBox="0 0 100 100" className="leave-ring-svg">
+                    <circle cx="50" cy="50" r="40" fill="none" stroke="var(--border)" strokeWidth="8"/>
+                    <circle cx="50" cy="50" r="40" fill="none" stroke={roleColor[currentUser?.role]||'#7c3aed'} strokeWidth="8"
+                      strokeDasharray={`${2*Math.PI*40}`}
+                      strokeDashoffset={`${totalLeaves > 0 ? 2*Math.PI*40*(1 - usedLeaves/totalLeaves) : 2*Math.PI*40}`}
+                      strokeLinecap="round" transform="rotate(-90 50 50)" />
+                  </svg>
+                  <div className="leave-circle-inner">
+                    <span className="leave-circle-val">{totalLeaves - usedLeaves}</span>
+                    <span className="leave-circle-sub">Remaining</span>
+                  </div>
+                </div>
+                <div className="leave-breakdown">
+                  <div className="leave-item"><span className="leave-dot" style={{ background:roleColor[currentUser?.role]||'#7c3aed' }} /><span>Total Paid Leaves</span><strong>{totalLeaves}</strong></div>
+                  <div className="leave-item"><span className="leave-dot" style={{ background:'var(--orange)' }} /><span>Used</span><strong>{usedLeaves}</strong></div>
+                  <div className="leave-item"><span className="leave-dot" style={{ background:'var(--green)' }} /><span>Remaining</span><strong>{totalLeaves - usedLeaves}</strong></div>
                 </div>
               </div>
-              <div className="leave-breakdown">
-                <div className="leave-item"><span className="leave-dot" style={{ background:roleColor[currentUser?.role]||'#7c3aed' }} /><span>Total Paid Leaves</span><strong>{totalLeaves}</strong></div>
-                <div className="leave-item"><span className="leave-dot" style={{ background:'var(--orange)' }} /><span>Used</span><strong>{usedLeaves}</strong></div>
-                <div className="leave-item"><span className="leave-dot" style={{ background:'var(--green)' }} /><span>Remaining</span><strong>{totalLeaves - usedLeaves}</strong></div>
-              </div>
             </div>
-          </div>
+          )}
 
           {showEmployeeDetails && (
             <div className="card profile-card profile-card-wide">
