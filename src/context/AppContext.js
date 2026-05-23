@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import * as api from '../utils/api';
 import { uploadPhotoToImageKit } from '../utils/api';
 
@@ -20,6 +20,11 @@ export function AppProvider({ children }) {
   const [notifList, setNotifList]                 = useState([]);
   const [unreadCount, setUnreadCount]             = useState(0);
   const [taskList, setTaskList]                   = useState([]);
+
+  // Keep a ref to currentUser so callbacks can read the latest value
+  // without needing it in their dependency arrays (which would cause re-renders).
+  const currentUserRef = useRef(currentUser);
+  useEffect(() => { currentUserRef.current = currentUser; }, [currentUser]);
 
   // ── Restore session on mount ──────────────────────────────────
   useEffect(() => {
@@ -216,11 +221,16 @@ export function AppProvider({ children }) {
 
   const createUser = useCallback(async (payload) => api.users.create(payload), []);
 
+  // ✅ FIX: Use currentUserRef instead of currentUser in deps.
+  // Previously [currentUser] caused updateUser to get a new reference on every
+  // login/profile update, which re-triggered all consumers → infinite loop.
   const updateUser = useCallback(async (id, payload) => {
     const data = await api.users.update(id, payload);
-    if (currentUser && id === currentUser.id) setCurrentUser(data.user);
+    if (currentUserRef.current && id === currentUserRef.current.id) {
+      setCurrentUser(data.user);
+    }
     return data;
-  }, [currentUser]);
+  }, []); // no deps needed — reads currentUser via ref
 
   const uploadProfilePhoto = useCallback(async (photoFile) => {
     const url  = await uploadPhotoToImageKit(photoFile, 'profile');
@@ -270,9 +280,6 @@ export function AppProvider({ children }) {
     return data;
   }, []);
 
-  // ── Memoize the entire context value ─────────────────────────
-  // Without useMemo, a new object is created every render, causing
-  // ALL consumers to re-render even when nothing changed — the loop.
   const value = useMemo(() => ({
     currentUser, authLoading, forceReset,
     login, logout, resetPassword,
