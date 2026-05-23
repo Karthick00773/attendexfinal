@@ -13,12 +13,6 @@ export function AppProvider({ children }) {
   const [todayRecord, setTodayRecord]             = useState(null);
   const [attendanceHistory, setAttendanceHistory] = useState([]);
   const [monthlySummary, setMonthlySummary]       = useState(null);
-  // NOTE: activeBreak state is REMOVED.
-  // Break status is always derived from todayRecord:
-  //   isBreak = Boolean(todayRecord?.break_start_time && !todayRecord?.break_end_time)
-  // This is the only reliable source of truth — it survives page refreshes
-  // and never goes stale. Using a separate boolean caused double-fetch races
-  // and "already in work" errors when the context state lagged behind.
   const [allEmployeesToday, setAllEmployeesToday] = useState([]);
 
   // Dashboard
@@ -32,18 +26,47 @@ export function AppProvider({ children }) {
   const [unreadCount, setUnreadCount] = useState(0);
   const [taskList, setTaskList]       = useState([]);
 
+  // ── Internal bootstrap: fetch all home data for a user ────────
+  // Called right after login AND on session restore so the
+  // dashboard is always populated before HomePage mounts.
+  const bootstrapUserData = useCallback(async (user) => {
+    if (!user) return;
+    const isAdminOrCeo = ['admin', 'ceo'].includes(user.role);
+    try {
+      // Fire all needed requests in parallel
+      const promises = [
+        api.dashboard.me().then(data => setDashboardStats(data)).catch(() => {}),
+        api.notifications.list().then(data => {
+          setNotifList(data.notifications || []);
+          setUnreadCount(data.unread_count || 0);
+        }).catch(() => {}),
+      ];
+      if (isAdminOrCeo) {
+        promises.push(
+          api.dashboard.overview().then(data => setAdminOverview(data)).catch(() => {}),
+          api.attendance.getAllToday().then(data => setAllEmployeesToday(data.employees || [])).catch(() => {}),
+        );
+      }
+      await Promise.all(promises);
+    } catch (_) {}
+  }, []);
+
   // ── Restore session on mount ──────────────────────────────────
   useEffect(() => {
     const token = localStorage.getItem('attendx_token');
     if (!token) { setAuthLoading(false); return; }
     api.auth.me()
-      .then(data => setCurrentUser(data.user))
+      .then(async data => {
+        setCurrentUser(data.user);
+        // Pre-fetch dashboard data on refresh/session restore
+        await bootstrapUserData(data.user);
+      })
       .catch(() => {
         localStorage.removeItem('attendx_token');
         localStorage.removeItem('attendx_refresh');
       })
       .finally(() => setAuthLoading(false));
-  }, []);
+  }, [bootstrapUserData]);
 
   // ── Auth ──────────────────────────────────────────────────────
   const login = async (email, password) => {
@@ -57,6 +80,10 @@ export function AppProvider({ children }) {
     }
     setCurrentUser(data.user);
     setForceReset(false);
+    // ── KEY FIX: pre-fetch dashboard data immediately after login ──
+    // This runs before the router navigates to HomePage, so the page
+    // always has data on first render — no blank screen, no need to refresh.
+    await bootstrapUserData(data.user);
     return { success: true };
   };
 
@@ -145,27 +172,15 @@ export function AppProvider({ children }) {
     return data;
   };
 
-  // FIX: startBreak and endBreak only call the API and update todayRecord
-  // from the response. They do NOT call fetchTodayAttendance() internally.
-  // The page calls fetchTodayAttendance() once after success — one fetch,
-  // no race condition, no double request to the backend.
   const startBreak = async () => {
     const data = await api.attendance.startBreak();
-    // Immediately update todayRecord from response if available
-    // so isBreak re-derives to true right away
-    if (data.attendance) {
-      setTodayRecord(data.attendance);
-    }
+    if (data.attendance) setTodayRecord(data.attendance);
     return data;
   };
 
   const endBreak = async () => {
     const data = await api.attendance.endBreak();
-    // Immediately update todayRecord from response if available
-    // so isBreak re-derives to false right away
-    if (data.attendance) {
-      setTodayRecord(data.attendance);
-    }
+    if (data.attendance) setTodayRecord(data.attendance);
     return data;
   };
 
@@ -316,7 +331,6 @@ export function AppProvider({ children }) {
     <AppContext.Provider value={{
       currentUser, authLoading, forceReset,
       login, logout, resetPassword,
-      // activeBreak is gone — consumers derive isBreak from todayRecord directly
       todayRecord, attendanceHistory, monthlySummary,
       fetchTodayAttendance, fetchAttendanceHistory, fetchMonthlySummary,
       checkIn, checkOut, startBreak, endBreak, overrideAttendance,
