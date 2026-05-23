@@ -9,43 +9,53 @@ export function AppProvider({ children }) {
   const [authLoading, setAuthLoading]   = useState(true);
   const [forceReset, setForceReset]     = useState(false);
 
-  // Attendance
   const [todayRecord, setTodayRecord]             = useState(null);
   const [attendanceHistory, setAttendanceHistory] = useState([]);
   const [monthlySummary, setMonthlySummary]       = useState(null);
-  // NOTE: activeBreak state is REMOVED.
-  // Break status is always derived from todayRecord:
-  //   isBreak = Boolean(todayRecord?.break_start_time && !todayRecord?.break_end_time)
-  // This is the only reliable source of truth — it survives page refreshes
-  // and never goes stale. Using a separate boolean caused double-fetch races
-  // and "already in work" errors when the context state lagged behind.
   const [allEmployeesToday, setAllEmployeesToday] = useState([]);
+  const [dashboardStats, setDashboardStats]       = useState(null);
+  const [adminOverview, setAdminOverview]         = useState(null);
+  const [messages, setMessages]                   = useState([]);
+  const [leaveList, setLeaveList]                 = useState([]);
+  const [notifList, setNotifList]                 = useState([]);
+  const [unreadCount, setUnreadCount]             = useState(0);
+  const [taskList, setTaskList]                   = useState([]);
 
-  // Dashboard
-  const [dashboardStats, setDashboardStats] = useState(null);
-  const [adminOverview, setAdminOverview]   = useState(null);
+  const bootstrapUserData = useCallback(async (user) => {
+    if (!user) return;
+    const isAdminOrCeo = ['admin', 'ceo'].includes(user.role);
+    const promises = [
+      api.dashboard.me().then(d => setDashboardStats(d)).catch(() => {}),
+      api.notifications.list().then(d => {
+        setNotifList(d.notifications || []);
+        setUnreadCount(d.unread_count || 0);
+      }).catch(() => {}),
+    ];
+    if (isAdminOrCeo) {
+      promises.push(
+        api.dashboard.overview().then(d => setAdminOverview(d)).catch(() => {}),
+        api.attendance.getAllToday().then(d => setAllEmployeesToday(d.employees || [])).catch(() => {}),
+      );
+    }
+    await Promise.all(promises);
+  }, []);
 
-  // Chat / Leaves / Notifications / Tasks
-  const [messages, setMessages]       = useState([]);
-  const [leaveList, setLeaveList]     = useState([]);
-  const [notifList, setNotifList]     = useState([]);
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [taskList, setTaskList]       = useState([]);
-
-  // ── Restore session on mount ──────────────────────────────────
+  // Session restore — authLoading stays true until we know if user is logged in
   useEffect(() => {
     const token = localStorage.getItem('attendx_token');
     if (!token) { setAuthLoading(false); return; }
     api.auth.me()
-      .then(data => setCurrentUser(data.user))
+      .then(data => {
+        setCurrentUser(data.user);
+        bootstrapUserData(data.user); // fire and forget
+      })
       .catch(() => {
         localStorage.removeItem('attendx_token');
         localStorage.removeItem('attendx_refresh');
       })
       .finally(() => setAuthLoading(false));
-  }, []);
+  }, [bootstrapUserData]);
 
-  // ── Auth ──────────────────────────────────────────────────────
   const login = async (email, password) => {
     const data = await api.auth.login(email, password);
     localStorage.setItem('attendx_token', data.access_token);
@@ -53,11 +63,12 @@ export function AppProvider({ children }) {
     if (data.forceReset) {
       setCurrentUser(data.user);
       setForceReset(true);
-      return { success: true, forceReset: true };
+      return { forceReset: true };
     }
     setCurrentUser(data.user);
     setForceReset(false);
-    return { success: true };
+    bootstrapUserData(data.user); // fire and forget — no await, no authLoading flip
+    return { forceReset: false };
   };
 
   const logout = async () => {
@@ -84,7 +95,6 @@ export function AppProvider({ children }) {
     setForceReset(false);
   };
 
-  // ── Attendance ────────────────────────────────────────────────
   const fetchTodayAttendance = useCallback(async () => {
     const data = await api.attendance.getToday();
     setTodayRecord(data.attendance);
@@ -111,17 +121,12 @@ export function AppProvider({ children }) {
 
   const checkIn = async (photoFile) => {
     const coords = await getCoords();
-    const lat    = coords?.latitude  ?? null;
-    const lng    = coords?.longitude ?? null;
-
+    const lat = coords?.latitude ?? null;
+    const lng = coords?.longitude ?? null;
     if (!lat || !lng) throw new Error('GPS coordinates are required. Please allow location access.');
-
     let photo_url = null;
-    if (photoFile) {
-      photo_url = await uploadPhotoToImageKit(photoFile, 'checkin');
-    }
+    if (photoFile) photo_url = await uploadPhotoToImageKit(photoFile, 'checkin');
     if (!photo_url) throw new Error('A check-in photo is required. Please take a photo.');
-
     const data = await api.attendance.checkIn(lat, lng, photo_url);
     setTodayRecord(data.attendance);
     return data;
@@ -129,51 +134,31 @@ export function AppProvider({ children }) {
 
   const checkOut = async (photoFile) => {
     const coords = await getCoords();
-    const lat    = coords?.latitude  ?? null;
-    const lng    = coords?.longitude ?? null;
-
+    const lat = coords?.latitude ?? null;
+    const lng = coords?.longitude ?? null;
     if (!lat || !lng) throw new Error('GPS coordinates are required. Please allow location access.');
-
     let photo_url = null;
-    if (photoFile) {
-      photo_url = await uploadPhotoToImageKit(photoFile, 'checkout');
-    }
+    if (photoFile) photo_url = await uploadPhotoToImageKit(photoFile, 'checkout');
     if (!photo_url) throw new Error('A check-out photo is required. Please take a photo.');
-
     const data = await api.attendance.checkOut(lat, lng, photo_url);
     setTodayRecord(data.attendance);
     return data;
   };
 
-  // FIX: startBreak and endBreak only call the API and update todayRecord
-  // from the response. They do NOT call fetchTodayAttendance() internally.
-  // The page calls fetchTodayAttendance() once after success — one fetch,
-  // no race condition, no double request to the backend.
   const startBreak = async () => {
     const data = await api.attendance.startBreak();
-    // Immediately update todayRecord from response if available
-    // so isBreak re-derives to true right away
-    if (data.attendance) {
-      setTodayRecord(data.attendance);
-    }
+    if (data.attendance) setTodayRecord(data.attendance);
     return data;
   };
 
   const endBreak = async () => {
     const data = await api.attendance.endBreak();
-    // Immediately update todayRecord from response if available
-    // so isBreak re-derives to false right away
-    if (data.attendance) {
-      setTodayRecord(data.attendance);
-    }
+    if (data.attendance) setTodayRecord(data.attendance);
     return data;
   };
 
-  const overrideAttendance = async (id, payload) => {
-    return await api.attendance.override(id, payload);
-  };
+  const overrideAttendance = async (id, payload) => api.attendance.override(id, payload);
 
-  // ── Dashboard ─────────────────────────────────────────────────
   const fetchDashboard = useCallback(async (month) => {
     const data = await api.dashboard.me(month);
     setDashboardStats(data);
@@ -186,7 +171,6 @@ export function AppProvider({ children }) {
     return data;
   }, []);
 
-  // ── Chat ──────────────────────────────────────────────────────
   const fetchMessages = useCallback(async (page = 1) => {
     const data = await api.chat.getMessages(page, 100);
     setMessages(data.messages || []);
@@ -204,7 +188,6 @@ export function AppProvider({ children }) {
     setMessages(prev => prev.filter(m => m.id !== id));
   };
 
-  // ── Leaves ────────────────────────────────────────────────────
   const fetchLeaves = useCallback(async (status) => {
     const data = await api.leaves.list(status);
     setLeaveList(data.leaves || []);
@@ -234,7 +217,6 @@ export function AppProvider({ children }) {
     setLeaveList(prev => prev.filter(l => l.id !== id));
   };
 
-  // ── Notifications ─────────────────────────────────────────────
   const fetchNotifications = useCallback(async () => {
     const data = await api.notifications.list();
     setNotifList(data.notifications || []);
@@ -254,7 +236,6 @@ export function AppProvider({ children }) {
     setUnreadCount(prev => Math.max(0, prev - 1));
   };
 
-  // ── Users (admin) ─────────────────────────────────────────────
   const createUser = async (payload) => api.users.create(payload);
 
   const updateUser = async (id, payload) => {
@@ -270,7 +251,6 @@ export function AppProvider({ children }) {
     return data;
   };
 
-  // ── Tasks ─────────────────────────────────────────────────────
   const fetchTasks = useCallback(async (filters) => {
     const data = await api.tasks.list(filters);
     setTaskList(data.tasks || []);
@@ -316,7 +296,6 @@ export function AppProvider({ children }) {
     <AppContext.Provider value={{
       currentUser, authLoading, forceReset,
       login, logout, resetPassword,
-      // activeBreak is gone — consumers derive isBreak from todayRecord directly
       todayRecord, attendanceHistory, monthlySummary,
       fetchTodayAttendance, fetchAttendanceHistory, fetchMonthlySummary,
       checkIn, checkOut, startBreak, endBreak, overrideAttendance,
@@ -341,7 +320,7 @@ function getCoords() {
     if (!navigator.geolocation) { resolve(null); return; }
     navigator.geolocation.getCurrentPosition(
       pos => resolve(pos.coords),
-      ()  => resolve(null),
+      () => resolve(null),
       { timeout: 8000, enableHighAccuracy: true }
     );
   });

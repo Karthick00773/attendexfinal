@@ -1,8 +1,7 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import './HomePage.css';
-import ScreenRecordingNotification, { useScreenshotCapture } from './ScreenRecordingNotification';
 
 function StatCard({ label, value, sub, color, icon }) {
   return (
@@ -18,9 +17,7 @@ function StatCard({ label, value, sub, color, icon }) {
 }
 
 function AttendanceMiniCard({ emp }) {
-  const status = !emp.today ? 'absent'
-    : emp.today.check_out_time ? 'left'
-    : 'present';
+  const status = !emp.today ? 'absent' : emp.today.check_out_time ? 'left' : 'present';
   const statusColor = { present:'badge-green', absent:'badge-red', left:'badge-blue' };
   const statusLabel = { present:'● Present', absent:'● Absent', left:'● Checked Out' };
   return (
@@ -44,22 +41,30 @@ export default function HomePage() {
     allEmployeesToday, fetchAllEmployeesToday,
   } = useApp();
   const navigate = useNavigate();
-  const screenshotNotif = useScreenshotCapture();
-  const now      = new Date();
-  const timeStr  = now.toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit', hour12:true });
-  const dateStr  = now.toLocaleDateString('en-IN', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
 
-  const isAdminOrCeo = ['admin','ceo'].includes(currentUser?.role);
+  const now     = new Date();
+  const timeStr = now.toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit', hour12:true });
+  const dateStr = now.toLocaleDateString('en-IN', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+
+  // Use a ref to track if we've already fetched for this user
+  // so the effect only fires once per login, not on every render.
+  const fetchedForRef = useRef(null);
 
   useEffect(() => {
+    if (!currentUser) return;
+    // Only fetch if we haven't fetched for this user yet
+    if (fetchedForRef.current === currentUser.id) return;
+    fetchedForRef.current = currentUser.id;
+
+    const isAdminOrCeo = ['admin', 'ceo'].includes(currentUser.role);
     fetchDashboard();
     fetchNotifications();
     if (isAdminOrCeo) {
       fetchAdminOverview();
       fetchAllEmployeesToday();
     }
-    // eslint-disable-next-line
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser]);
 
   const summary = dashboardStats?.month_summary || {};
   const user    = dashboardStats?.user || currentUser;
@@ -68,6 +73,7 @@ export default function HomePage() {
   const usedLeaves   = user?.paid_leaves_used   ?? currentUser?.used_leaves  ?? 0;
   const leaveBalance = user?.paid_leave_balance ?? (totalLeaves - usedLeaves);
 
+  const isAdminOrCeo  = ['admin', 'ceo'].includes(currentUser?.role);
   const pendingLeaves = isAdminOrCeo
     ? (adminOverview?.pending_leaves || 0)
     : (dashboardStats?.pending_leaves || 0);
@@ -94,42 +100,20 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* Stats — employee only */}
       {!isAdminOrCeo && (
         <div className="grid-4 home-stats">
-          <StatCard
-            label="Normal Hours"
-            value={`${Number(summary.normal_hours || 0).toFixed(1)}h`}
-            sub={`of ${summary.monthly_target || 180}h this month`}
-            color="#7c3aed"
-            icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>}
-          />
-          <StatCard
-            label="Overtime"
-            value={`${Number(summary.overtime_hours || 0).toFixed(1)}h`}
-            sub="this month"
-            color="#f59e0b"
-            icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>}
-          />
-          <StatCard
-            label="Leave Balance"
-            value={leaveBalance}
-            sub={`of ${totalLeaves} paid days`}
-            color="#10b981"
-            icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>}
-          />
-          <StatCard
-            label="Pending Leaves"
-            value={pendingLeaves}
-            sub="awaiting approval"
-            color="#ef4444"
-            icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>}
-          />
+          <StatCard label="Normal Hours" value={`${Number(summary.normal_hours || 0).toFixed(1)}h`} sub={`of ${summary.monthly_target || 180}h this month`} color="#7c3aed"
+            icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>} />
+          <StatCard label="Overtime" value={`${Number(summary.overtime_hours || 0).toFixed(1)}h`} sub="this month" color="#f59e0b"
+            icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>} />
+          <StatCard label="Leave Balance" value={leaveBalance} sub={`of ${totalLeaves} paid days`} color="#10b981"
+            icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>} />
+          <StatCard label="Pending Leaves" value={pendingLeaves} sub="awaiting approval" color="#ef4444"
+            icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>} />
         </div>
       )}
 
       <div className="home-grid">
-        {/* Monthly progress — employee only */}
         {!isAdminOrCeo && (
           <div className="card home-progress-card">
             <h3 className="card-title">Monthly Progress</h3>
@@ -153,7 +137,6 @@ export default function HomePage() {
           </div>
         )}
 
-        {/* Admin/CEO today summary */}
         {isAdminOrCeo && adminOverview && (
           <div className="card home-progress-card">
             <h3 className="card-title">Today's Team Overview</h3>
@@ -168,13 +151,10 @@ export default function HomePage() {
           </div>
         )}
 
-        {/* Notifications */}
         <div className="card home-notif-card">
           <div className="card-head">
             <h3 className="card-title">Notifications</h3>
-            {unreadCount > 0 && (
-              <button className="btn btn-ghost btn-sm" onClick={markAllNotifRead}>Mark all read</button>
-            )}
+            {unreadCount > 0 && <button className="btn btn-ghost btn-sm" onClick={markAllNotifRead}>Mark all read</button>}
           </div>
           <div className="notif-list">
             {notifList.length === 0 && <p className="empty-msg">No notifications</p>}
@@ -203,7 +183,6 @@ export default function HomePage() {
           )}
         </div>
 
-        {/* Team attendance — admin/ceo only */}
         {isAdminOrCeo && (
           <div className="card home-team-card">
             <div className="card-head">
@@ -211,15 +190,12 @@ export default function HomePage() {
               <button className="btn btn-ghost btn-sm" onClick={() => navigate('/attendance/manage')}>View All</button>
             </div>
             <div className="team-attend-list">
-              {allEmployeesToday.slice(0, 5).map(emp => (
-                <AttendanceMiniCard key={emp.id} emp={emp} />
-              ))}
+              {allEmployeesToday.slice(0, 5).map(emp => <AttendanceMiniCard key={emp.id} emp={emp} />)}
               {allEmployeesToday.length === 0 && <p className="empty-msg">No employee data</p>}
             </div>
           </div>
         )}
 
-        {/* Quick actions */}
         <div className="card home-quick-card">
           <h3 className="card-title">Quick Actions</h3>
           <div className="quick-actions">
@@ -256,7 +232,6 @@ export default function HomePage() {
           </div>
         </div>
       </div>
-    {!isAdminOrCeo && <ScreenRecordingNotification {...screenshotNotif} />}
     </div>
   );
 }

@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import './LoginPage.css';
 
 export default function LoginPage() {
   const { login, resetPassword, forceReset } = useApp();
-  const navigate = useNavigate();
+  // No useNavigate — navigation is handled by the route guard in App.js.
+  // When login() sets currentUser, the route guard
+  // (currentUser ? <Navigate to="/" /> : <LoginPage />) redirects automatically.
+  // Calling navigate() here at the same time caused the redirect loop.
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -13,7 +16,7 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPw, setShowPw] = useState(false);
-  const [isActive, setIsActive] = useState(false); // toggle panel state
+  const [isActive, setIsActive] = useState(false);
   const [forgotEmail, setForgotEmail] = useState('');
   const [forgotError, setForgotError] = useState('');
   const [forgotSuccess, setForgotSuccess] = useState('');
@@ -24,8 +27,11 @@ export default function LoginPage() {
     setError('');
     setLoading(true);
     try {
-      const result = await login(email, password);
-      if (!result.forceReset) navigate('/');
+      await login(email, password);
+      // DO NOT call navigate('/') here.
+      // login() sets currentUser in context.
+      // React re-renders AppRoutes, the route guard sees currentUser is set,
+      // and renders <Navigate to="/" replace /> — clean, no loop.
     } catch (err) {
       setError(err.message || 'Invalid email or password. Please try again.');
     } finally {
@@ -37,11 +43,11 @@ export default function LoginPage() {
     e.preventDefault();
     if (newPassword.length < 8) { setError('Password must be at least 8 characters.'); return; }
     if (newPassword !== confirmPassword) { setError('Passwords do not match.'); return; }
-    setLoading(true);
-    setError('');
+    setLoading(true); setError('');
     try {
       await resetPassword(newPassword);
-      navigate('/');
+      // resetPassword sets currentUser and forceReset=false.
+      // Route guard handles redirect automatically.
     } catch (err) {
       setError(err.message || 'Password reset failed. Please try again.');
     } finally {
@@ -51,17 +57,9 @@ export default function LoginPage() {
 
   const handleForgotPassword = async (e) => {
     e.preventDefault();
-    setForgotError('');
-    setForgotSuccess('');
-    setForgotLoading(true);
+    setForgotError(''); setForgotSuccess(''); setForgotLoading(true);
     try {
-      // Simulate sending password reset email
-      if (!forgotEmail) {
-        setForgotError('Please enter your email address.');
-        setForgotLoading(false);
-        return;
-      }
-      // In a real app, this would call an API to send a reset email
+      if (!forgotEmail) { setForgotError('Please enter your email address.'); return; }
       setForgotSuccess('Password reset link sent to your email. Please check your inbox.');
       setForgotEmail('');
       setTimeout(() => setForgotSuccess(''), 5000);
@@ -72,12 +70,11 @@ export default function LoginPage() {
     }
   };
 
-  /* ── Force reset screen ── */
   if (forceReset) {
     return (
       <div className="login-page">
-        <div className="login-container" style={{ justifyContent: 'center', minHeight: 420 }}>
-          <div className="login-right" style={{ width: '100%' }}>
+        <div className="login-container" style={{ justifyContent:'center', minHeight:420 }}>
+          <div className="login-right" style={{ width:'100%' }}>
             <div className="login-card">
               <div className="login-card-header">
                 <h3>Set New Password</h3>
@@ -106,36 +103,31 @@ export default function LoginPage() {
     );
   }
 
-  /* ── Main login screen ── */
   return (
     <div className="login-page">
       <div className={`login-container${isActive ? ' active' : ''}`}>
 
-        {/* ── Forgot Password form (left slot, hidden by default) ── */}
         <div className="form-container sign-up">
           <form onSubmit={handleForgotPassword}>
             <h1>Forgot Password?</h1>
-            <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 16 }}>Enter your email address and we'll send you a link to reset your password.</p>
+            <p style={{ fontSize:13, color:'var(--muted)', marginBottom:16 }}>
+              Enter your email address and we'll send you a link to reset your password.
+            </p>
             <input type="email" placeholder="Enter your email"
               value={forgotEmail} onChange={e => setForgotEmail(e.target.value)} required />
-            {forgotSuccess && <div className="login-success" style={{ width: '100%', marginTop: 6, background: '#dcfce7', borderColor: '#86efac', color: '#16a34a' }}>{forgotSuccess}</div>}
-            {forgotError && <div className="login-error" style={{ width: '100%', marginTop: 6 }}>{forgotError}</div>}
-            <button type="submit" disabled={forgotLoading}>
-              {forgotLoading ? 'Sending...' : 'Send Reset Link'}
-            </button>
+            {forgotSuccess && <div className="login-success" style={{ width:'100%', marginTop:6, background:'#dcfce7', borderColor:'#86efac', color:'#16a34a' }}>{forgotSuccess}</div>}
+            {forgotError && <div className="login-error" style={{ width:'100%', marginTop:6 }}>{forgotError}</div>}
+            <button type="submit" disabled={forgotLoading}>{forgotLoading ? 'Sending...' : 'Send Reset Link'}</button>
           </form>
         </div>
 
-        {/* ── Sign-In form (right slot) ── */}
         <div className="form-container sign-in">
           <form onSubmit={handleLogin}>
             <h1>Sign In</h1>
-
             <span>Use your email &amp; password to sign in</span>
             <input type="email" placeholder="Email"
               value={email} onChange={e => setEmail(e.target.value)} required autoComplete="email" />
-
-            <div className="input-icon-wrap" style={{ width: '100%' }}>
+            <div className="input-icon-wrap" style={{ width:'100%' }}>
               <input
                 type={showPw ? 'text' : 'password'}
                 className="input-with-toggle"
@@ -144,8 +136,7 @@ export default function LoginPage() {
                 onChange={e => setPassword(e.target.value)}
                 required
                 autoComplete="current-password"
-                style={{ width: '100%', background: '#eee', border: 'none', margin: '8px 0',
-                  padding: '10px 38px 10px 15px', fontSize: 13, borderRadius: 8, outline: 'none' }}
+                style={{ width:'100%', background:'#eee', border:'none', margin:'8px 0', padding:'10px 38px 10px 15px', fontSize:13, borderRadius:8, outline:'none' }}
               />
               <button type="button" className="pw-toggle" onClick={() => setShowPw(s => !s)}>
                 {showPw
@@ -154,18 +145,12 @@ export default function LoginPage() {
                 }
               </button>
             </div>
-
             <button type="button" className="link-btn" onClick={() => setIsActive(true)}>Forget Your Password?</button>
-
-            {error && <div className="login-error" style={{ width: '100%', marginTop: 6 }}>{error}</div>}
-
-            <button type="submit" disabled={loading}>
-              {loading ? 'Signing in…' : 'Sign In'}
-            </button>
+            {error && <div className="login-error" style={{ width:'100%', marginTop:6 }}>{error}</div>}
+            <button type="submit" disabled={loading}>{loading ? 'Signing in…' : 'Sign In'}</button>
           </form>
         </div>
 
-        {/* ── Sliding toggle overlay ── */}
         <div className="toggle-container">
           <div className="toggle">
             <div className="toggle-panel toggle-left">
