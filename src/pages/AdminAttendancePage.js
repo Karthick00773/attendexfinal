@@ -23,7 +23,9 @@ export default function AdminAttendancePage() {
   });
   const [addEmpSaving, setAddEmpSaving] = useState(false);
 
-  useEffect(() => { fetchAllEmployeesToday(); }, [fetchAllEmployeesToday]);
+  // ✅ FIX: empty deps — fetchAllEmployeesToday was in the dep array before,
+  // causing the effect to re-run every time its reference changed, creating a loop.
+  useEffect(() => { fetchAllEmployeesToday(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadEmpHistory = async (empId, m) => {
     setHistoryLoading(true);
@@ -101,8 +103,6 @@ export default function AdminAttendancePage() {
   const fmtTime = (iso) =>
     iso ? new Date(iso).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false }) : '—';
 
-  // ── Derive employee status — now includes 'break' ─────────────
-  // break = checked in + break_start_time set + break_end_time NOT set
   const getStatus = (emp) => {
     const today = emp.today;
     if (!today)                   return 'absent';
@@ -147,7 +147,6 @@ export default function AdminAttendancePage() {
       {error      && <div className="leave-success" style={{ marginBottom: 16, background: '#fef2f2', borderColor: '#fca5a5', color: '#dc2626' }}>{error}</div>}
       {successMsg && <div className="leave-success" style={{ marginBottom: 16 }}>{successMsg}</div>}
 
-      {/* ── Employee cards ── */}
       <div className="admin-emp-grid">
         {allEmployeesToday.map(emp => {
           const status = getStatus(emp);
@@ -166,23 +165,11 @@ export default function AdminAttendancePage() {
                   <span className="admin-emp-name">{emp.name}</span>
                   <span className="admin-emp-role">{emp.designation}</span>
                 </div>
-
-                {/* ── Status badge with animated dot ── */}
                 <span className={`badge ${meta.color}`} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                  {/* Pulsing dot for 'on break', static dot for others */}
                   {status === 'break' ? (
-                    <span style={{
-                      width: 8, height: 8, borderRadius: '50%',
-                      background: meta.dot,
-                      display: 'inline-block',
-                      animation: 'badge-pulse 1.4s ease-in-out infinite',
-                    }} />
+                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: meta.dot, display: 'inline-block', animation: 'badge-pulse 1.4s ease-in-out infinite' }} />
                   ) : (
-                    <span style={{
-                      width: 8, height: 8, borderRadius: '50%',
-                      background: meta.dot,
-                      display: 'inline-block',
-                    }} />
+                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: meta.dot, display: 'inline-block' }} />
                   )}
                   {meta.label}
                 </span>
@@ -207,20 +194,8 @@ export default function AdminAttendancePage() {
                 </div>
               </div>
 
-              {/* Break info row — only shown when employee is on break */}
               {status === 'break' && (
-                <div style={{
-                  marginTop: 10,
-                  padding: '7px 12px',
-                  background: '#fffbeb',
-                  border: '1px solid #fde68a',
-                  borderRadius: 8,
-                  fontSize: '0.78rem',
-                  color: '#92400e',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                }}>
+                <div style={{ marginTop: 10, padding: '7px 12px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, fontSize: '0.78rem', color: '#92400e', display: 'flex', alignItems: 'center', gap: 6 }}>
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M18 8h1a4 4 0 0 1 0 8h-1"/>
                     <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/>
@@ -246,7 +221,6 @@ export default function AdminAttendancePage() {
         )}
       </div>
 
-      {/* ── Detailed history ── */}
       {selectedEmp && (
         <div className="card admin-detail-card">
           <div className="card-head">
@@ -273,14 +247,8 @@ export default function AdminAttendancePage() {
               <table className="admin-table">
                 <thead>
                   <tr>
-                    <th>Date</th>
-                    <th>Day</th>
-                    <th>Check-In</th>
-                    <th>Check-Out</th>
-                    <th>Normal</th>
-                    <th>Overtime</th>
-                    <th>Status</th>
-                    <th>Action</th>
+                    <th>Date</th><th>Day</th><th>Check-In</th><th>Check-Out</th>
+                    <th>Normal</th><th>Overtime</th><th>Status</th><th>Action</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -291,17 +259,13 @@ export default function AdminAttendancePage() {
                       <td>
                         <div className="table-time-cell">
                           {fmtTime(r.check_in_time)}
-                          {r.check_in_photo_url && (
-                            <a href={r.check_in_photo_url} target="_blank" rel="noreferrer" className="table-photo-badge" title="View photo">📷</a>
-                          )}
+                          {r.check_in_photo_url && <a href={r.check_in_photo_url} target="_blank" rel="noreferrer" className="table-photo-badge" title="View photo">📷</a>}
                         </div>
                       </td>
                       <td>
                         <div className="table-time-cell">
                           {fmtTime(r.check_out_time)}
-                          {r.check_out_photo_url && (
-                            <a href={r.check_out_photo_url} target="_blank" rel="noreferrer" className="table-photo-badge" title="View photo">📷</a>
-                          )}
+                          {r.check_out_photo_url && <a href={r.check_out_photo_url} target="_blank" rel="noreferrer" className="table-photo-badge" title="View photo">📷</a>}
                         </div>
                       </td>
                       <td><span style={{ color: 'var(--accent)', fontWeight: 700 }}>{formatHrs(r.normal_hours)}</span></td>
@@ -328,7 +292,6 @@ export default function AdminAttendancePage() {
         </div>
       )}
 
-      {/* ── Override modal ── */}
       {overrideModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
           <div className="card" style={{ width: '100%', maxWidth: 480, padding: 24 }}>
@@ -366,7 +329,6 @@ export default function AdminAttendancePage() {
         </div>
       )}
 
-      {/* ── Add Employee modal ── */}
       {addEmpModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
           <div className="card" style={{ width: '100%', maxWidth: 480, padding: 24 }}>
@@ -375,37 +337,31 @@ export default function AdminAttendancePage() {
               <div className="form-group">
                 <label className="label">Full Name</label>
                 <input type="text" className="input" placeholder="John Doe"
-                  value={addEmpForm.name}
-                  onChange={e => setAddEmpForm(f => ({ ...f, name: e.target.value }))} />
+                  value={addEmpForm.name} onChange={e => setAddEmpForm(f => ({ ...f, name: e.target.value }))} />
               </div>
               <div className="form-group">
                 <label className="label">Email Address</label>
                 <input type="email" className="input" placeholder="john.doe@company.com"
-                  value={addEmpForm.email}
-                  onChange={e => setAddEmpForm(f => ({ ...f, email: e.target.value }))} />
+                  value={addEmpForm.email} onChange={e => setAddEmpForm(f => ({ ...f, email: e.target.value }))} />
               </div>
               <div className="form-group">
                 <label className="label">Designation</label>
                 <input type="text" className="input" placeholder="Software Engineer"
-                  value={addEmpForm.designation}
-                  onChange={e => setAddEmpForm(f => ({ ...f, designation: e.target.value }))} />
+                  value={addEmpForm.designation} onChange={e => setAddEmpForm(f => ({ ...f, designation: e.target.value }))} />
               </div>
               <div className="form-group">
                 <label className="label">Department</label>
                 <input type="text" className="input" placeholder="Engineering"
-                  value={addEmpForm.department}
-                  onChange={e => setAddEmpForm(f => ({ ...f, department: e.target.value }))} />
+                  value={addEmpForm.department} onChange={e => setAddEmpForm(f => ({ ...f, department: e.target.value }))} />
               </div>
               <div className="form-group">
                 <label className="label">Phone Number</label>
                 <input type="tel" className="input" placeholder="+91 98765 43210"
-                  value={addEmpForm.phone}
-                  onChange={e => setAddEmpForm(f => ({ ...f, phone: e.target.value }))} />
+                  value={addEmpForm.phone} onChange={e => setAddEmpForm(f => ({ ...f, phone: e.target.value }))} />
               </div>
               <div className="form-group">
                 <label className="label">Role</label>
-                <select className="input" value={addEmpForm.role}
-                  onChange={e => setAddEmpForm(f => ({ ...f, role: e.target.value }))}>
+                <select className="input" value={addEmpForm.role} onChange={e => setAddEmpForm(f => ({ ...f, role: e.target.value }))}>
                   <option value="employee">Employee</option>
                   <option value="admin">Admin</option>
                   <option value="ceo">CEO</option>
@@ -423,7 +379,6 @@ export default function AdminAttendancePage() {
         </div>
       )}
 
-      {/* ── Pulse animation for break dot ── */}
       <style>{`
         @keyframes badge-pulse {
           0%   { box-shadow: 0 0 0 0   rgba(245,158,11,0.5); }
@@ -431,7 +386,6 @@ export default function AdminAttendancePage() {
           100% { box-shadow: 0 0 0 0   rgba(245,158,11,0);   }
         }
       `}</style>
-
     </div>
   );
 }
