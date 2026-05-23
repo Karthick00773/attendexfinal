@@ -25,12 +25,12 @@ export default function LoginPage() {
     setLoading(true);
     try {
       const result = await login(email, password);
-      // Do NOT call navigate('/') here.
-      // login() sets authLoading=true, fetches all data, then sets
-      // authLoading=false. At that point currentUser is set, and the
-      // route guard in App.js (<currentUser ? <Navigate to="/" /> : <LoginPage />)
-      // automatically redirects — with data already in state.
-      if (result.forceReset) navigate('/login'); // stay on login for password reset
+      // login() calls bootstrapUserData() in background (fire-and-forget).
+      // currentUser is now set, so the route guard
+      // (currentUser ? <Navigate to="/" /> : <LoginPage />) kicks in
+      // and redirects automatically. We still call navigate here as a
+      // fallback in case the route guard hasn't re-evaluated yet.
+      if (!result.forceReset) navigate('/');
     } catch (err) {
       setError(err.message || 'Invalid email or password. Please try again.');
     } finally {
@@ -42,8 +42,7 @@ export default function LoginPage() {
     e.preventDefault();
     if (newPassword.length < 8) { setError('Password must be at least 8 characters.'); return; }
     if (newPassword !== confirmPassword) { setError('Passwords do not match.'); return; }
-    setLoading(true);
-    setError('');
+    setLoading(true); setError('');
     try {
       await resetPassword(newPassword);
       navigate('/');
@@ -56,15 +55,9 @@ export default function LoginPage() {
 
   const handleForgotPassword = async (e) => {
     e.preventDefault();
-    setForgotError('');
-    setForgotSuccess('');
-    setForgotLoading(true);
+    setForgotError(''); setForgotSuccess(''); setForgotLoading(true);
     try {
-      if (!forgotEmail) {
-        setForgotError('Please enter your email address.');
-        setForgotLoading(false);
-        return;
-      }
+      if (!forgotEmail) { setForgotError('Please enter your email address.'); return; }
       setForgotSuccess('Password reset link sent to your email. Please check your inbox.');
       setForgotEmail('');
       setTimeout(() => setForgotSuccess(''), 5000);
@@ -75,12 +68,11 @@ export default function LoginPage() {
     }
   };
 
-  /* ── Force reset screen ── */
   if (forceReset) {
     return (
       <div className="login-page">
-        <div className="login-container" style={{ justifyContent: 'center', minHeight: 420 }}>
-          <div className="login-right" style={{ width: '100%' }}>
+        <div className="login-container" style={{ justifyContent:'center', minHeight:420 }}>
+          <div className="login-right" style={{ width:'100%' }}>
             <div className="login-card">
               <div className="login-card-header">
                 <h3>Set New Password</h3>
@@ -109,44 +101,31 @@ export default function LoginPage() {
     );
   }
 
-  /* ── Main login screen ── */
   return (
     <div className="login-page">
       <div className={`login-container${isActive ? ' active' : ''}`}>
 
-        {/* ── Forgot Password form ── */}
         <div className="form-container sign-up">
           <form onSubmit={handleForgotPassword}>
             <h1>Forgot Password?</h1>
-            <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 16 }}>
+            <p style={{ fontSize:13, color:'var(--muted)', marginBottom:16 }}>
               Enter your email address and we'll send you a link to reset your password.
             </p>
             <input type="email" placeholder="Enter your email"
               value={forgotEmail} onChange={e => setForgotEmail(e.target.value)} required />
-            {forgotSuccess && (
-              <div className="login-success" style={{ width:'100%', marginTop:6, background:'#dcfce7', borderColor:'#86efac', color:'#16a34a' }}>
-                {forgotSuccess}
-              </div>
-            )}
-            {forgotError && (
-              <div className="login-error" style={{ width:'100%', marginTop:6 }}>{forgotError}</div>
-            )}
-            <button type="submit" disabled={forgotLoading}>
-              {forgotLoading ? 'Sending...' : 'Send Reset Link'}
-            </button>
+            {forgotSuccess && <div className="login-success" style={{ width:'100%', marginTop:6, background:'#dcfce7', borderColor:'#86efac', color:'#16a34a' }}>{forgotSuccess}</div>}
+            {forgotError && <div className="login-error" style={{ width:'100%', marginTop:6 }}>{forgotError}</div>}
+            <button type="submit" disabled={forgotLoading}>{forgotLoading ? 'Sending...' : 'Send Reset Link'}</button>
           </form>
         </div>
 
-        {/* ── Sign-In form ── */}
         <div className="form-container sign-in">
           <form onSubmit={handleLogin}>
             <h1>Sign In</h1>
             <span>Use your email &amp; password to sign in</span>
-
             <input type="email" placeholder="Email"
               value={email} onChange={e => setEmail(e.target.value)} required autoComplete="email" />
-
-            <div className="input-icon-wrap" style={{ width: '100%' }}>
+            <div className="input-icon-wrap" style={{ width:'100%' }}>
               <input
                 type={showPw ? 'text' : 'password'}
                 className="input-with-toggle"
@@ -155,11 +134,7 @@ export default function LoginPage() {
                 onChange={e => setPassword(e.target.value)}
                 required
                 autoComplete="current-password"
-                style={{
-                  width: '100%', background: '#eee', border: 'none',
-                  margin: '8px 0', padding: '10px 38px 10px 15px',
-                  fontSize: 13, borderRadius: 8, outline: 'none',
-                }}
+                style={{ width:'100%', background:'#eee', border:'none', margin:'8px 0', padding:'10px 38px 10px 15px', fontSize:13, borderRadius:8, outline:'none' }}
               />
               <button type="button" className="pw-toggle" onClick={() => setShowPw(s => !s)}>
                 {showPw
@@ -168,22 +143,12 @@ export default function LoginPage() {
                 }
               </button>
             </div>
-
-            <button type="button" className="link-btn" onClick={() => setIsActive(true)}>
-              Forget Your Password?
-            </button>
-
-            {error && (
-              <div className="login-error" style={{ width: '100%', marginTop: 6 }}>{error}</div>
-            )}
-
-            <button type="submit" disabled={loading}>
-              {loading ? 'Signing in…' : 'Sign In'}
-            </button>
+            <button type="button" className="link-btn" onClick={() => setIsActive(true)}>Forget Your Password?</button>
+            {error && <div className="login-error" style={{ width:'100%', marginTop:6 }}>{error}</div>}
+            <button type="submit" disabled={loading}>{loading ? 'Signing in…' : 'Sign In'}</button>
           </form>
         </div>
 
-        {/* ── Sliding toggle overlay ── */}
         <div className="toggle-container">
           <div className="toggle">
             <div className="toggle-panel toggle-left">

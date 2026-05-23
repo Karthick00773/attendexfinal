@@ -9,26 +9,19 @@ export function AppProvider({ children }) {
   const [authLoading, setAuthLoading]   = useState(true);
   const [forceReset, setForceReset]     = useState(false);
 
-  // Attendance
   const [todayRecord, setTodayRecord]             = useState(null);
   const [attendanceHistory, setAttendanceHistory] = useState([]);
   const [monthlySummary, setMonthlySummary]       = useState(null);
   const [allEmployeesToday, setAllEmployeesToday] = useState([]);
+  const [dashboardStats, setDashboardStats]       = useState(null);
+  const [adminOverview, setAdminOverview]         = useState(null);
+  const [messages, setMessages]                   = useState([]);
+  const [leaveList, setLeaveList]                 = useState([]);
+  const [notifList, setNotifList]                 = useState([]);
+  const [unreadCount, setUnreadCount]             = useState(0);
+  const [taskList, setTaskList]                   = useState([]);
 
-  // Dashboard
-  const [dashboardStats, setDashboardStats] = useState(null);
-  const [adminOverview, setAdminOverview]   = useState(null);
-
-  // Chat / Leaves / Notifications / Tasks
-  const [messages, setMessages]       = useState([]);
-  const [leaveList, setLeaveList]     = useState([]);
-  const [notifList, setNotifList]     = useState([]);
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [taskList, setTaskList]       = useState([]);
-
-  // ── Internal bootstrap: fetch all home data for a user ────────
-  // Called right after login AND on session restore so the
-  // dashboard is always populated before HomePage mounts.
+  // Fetch dashboard data in background — does NOT block navigation
   const bootstrapUserData = useCallback(async (user) => {
     if (!user) return;
     const isAdminOrCeo = ['admin', 'ceo'].includes(user.role);
@@ -49,22 +42,27 @@ export function AppProvider({ children }) {
   }, []);
 
   // ── Restore session on mount ──────────────────────────────────
+  // authLoading=true until we know if there's a valid session.
+  // bootstrapUserData runs in background — does not extend authLoading.
   useEffect(() => {
     const token = localStorage.getItem('attendx_token');
     if (!token) { setAuthLoading(false); return; }
     api.auth.me()
-      .then(async data => {
+      .then(data => {
         setCurrentUser(data.user);
-        await bootstrapUserData(data.user);
+        bootstrapUserData(data.user); // fire and forget — don't await
       })
       .catch(() => {
         localStorage.removeItem('attendx_token');
         localStorage.removeItem('attendx_refresh');
       })
-      .finally(() => setAuthLoading(false));
+      .finally(() => setAuthLoading(false)); // resolve auth as soon as user is known
   }, [bootstrapUserData]);
 
   // ── Auth ──────────────────────────────────────────────────────
+  // login() sets currentUser immediately so the route guard redirects to /.
+  // bootstrapUserData runs in background — HomePage useEffect re-renders
+  // as data arrives. No authLoading flip needed — that caused the loop.
   const login = async (email, password) => {
     const data = await api.auth.login(email, password);
     localStorage.setItem('attendx_token', data.access_token);
@@ -74,18 +72,9 @@ export function AppProvider({ children }) {
       setForceReset(true);
       return { success: true, forceReset: true };
     }
-    // KEY FIX: set authLoading=true BEFORE setting currentUser.
-    // This means ProtectedLayout shows <LoadingScreen> while bootstrap
-    // runs, so HomePage never mounts with empty dashboardStats.
-    // authLoading flips back to false only after all data is ready.
-    setAuthLoading(true);
     setCurrentUser(data.user);
     setForceReset(false);
-    try {
-      await bootstrapUserData(data.user);
-    } finally {
-      setAuthLoading(false);
-    }
+    bootstrapUserData(data.user); // fire and forget — don't await
     return { success: true };
   };
 
@@ -113,7 +102,6 @@ export function AppProvider({ children }) {
     setForceReset(false);
   };
 
-  // ── Attendance ────────────────────────────────────────────────
   const fetchTodayAttendance = useCallback(async () => {
     const data = await api.attendance.getToday();
     setTodayRecord(data.attendance);
@@ -140,8 +128,8 @@ export function AppProvider({ children }) {
 
   const checkIn = async (photoFile) => {
     const coords = await getCoords();
-    const lat    = coords?.latitude  ?? null;
-    const lng    = coords?.longitude ?? null;
+    const lat = coords?.latitude ?? null;
+    const lng = coords?.longitude ?? null;
     if (!lat || !lng) throw new Error('GPS coordinates are required. Please allow location access.');
     let photo_url = null;
     if (photoFile) photo_url = await uploadPhotoToImageKit(photoFile, 'checkin');
@@ -153,8 +141,8 @@ export function AppProvider({ children }) {
 
   const checkOut = async (photoFile) => {
     const coords = await getCoords();
-    const lat    = coords?.latitude  ?? null;
-    const lng    = coords?.longitude ?? null;
+    const lat = coords?.latitude ?? null;
+    const lng = coords?.longitude ?? null;
     if (!lat || !lng) throw new Error('GPS coordinates are required. Please allow location access.');
     let photo_url = null;
     if (photoFile) photo_url = await uploadPhotoToImageKit(photoFile, 'checkout');
@@ -176,11 +164,8 @@ export function AppProvider({ children }) {
     return data;
   };
 
-  const overrideAttendance = async (id, payload) => {
-    return await api.attendance.override(id, payload);
-  };
+  const overrideAttendance = async (id, payload) => api.attendance.override(id, payload);
 
-  // ── Dashboard ─────────────────────────────────────────────────
   const fetchDashboard = useCallback(async (month) => {
     const data = await api.dashboard.me(month);
     setDashboardStats(data);
@@ -193,7 +178,6 @@ export function AppProvider({ children }) {
     return data;
   }, []);
 
-  // ── Chat ──────────────────────────────────────────────────────
   const fetchMessages = useCallback(async (page = 1) => {
     const data = await api.chat.getMessages(page, 100);
     setMessages(data.messages || []);
@@ -211,7 +195,6 @@ export function AppProvider({ children }) {
     setMessages(prev => prev.filter(m => m.id !== id));
   };
 
-  // ── Leaves ────────────────────────────────────────────────────
   const fetchLeaves = useCallback(async (status) => {
     const data = await api.leaves.list(status);
     setLeaveList(data.leaves || []);
@@ -241,7 +224,6 @@ export function AppProvider({ children }) {
     setLeaveList(prev => prev.filter(l => l.id !== id));
   };
 
-  // ── Notifications ─────────────────────────────────────────────
   const fetchNotifications = useCallback(async () => {
     const data = await api.notifications.list();
     setNotifList(data.notifications || []);
@@ -261,7 +243,6 @@ export function AppProvider({ children }) {
     setUnreadCount(prev => Math.max(0, prev - 1));
   };
 
-  // ── Users (admin) ─────────────────────────────────────────────
   const createUser = async (payload) => api.users.create(payload);
 
   const updateUser = async (id, payload) => {
@@ -277,7 +258,6 @@ export function AppProvider({ children }) {
     return data;
   };
 
-  // ── Tasks ─────────────────────────────────────────────────────
   const fetchTasks = useCallback(async (filters) => {
     const data = await api.tasks.list(filters);
     setTaskList(data.tasks || []);
@@ -347,7 +327,7 @@ function getCoords() {
     if (!navigator.geolocation) { resolve(null); return; }
     navigator.geolocation.getCurrentPosition(
       pos => resolve(pos.coords),
-      ()  => resolve(null),
+      () => resolve(null),
       { timeout: 8000, enableHighAccuracy: true }
     );
   });
