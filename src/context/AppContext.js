@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import * as api from '../utils/api';
 import { uploadPhotoToImageKit } from '../utils/api';
 
@@ -26,21 +26,16 @@ export function AppProvider({ children }) {
     const token = localStorage.getItem('attendx_token');
     if (!token) { setAuthLoading(false); return; }
     api.auth.me()
-      .then(data => {
-        setCurrentUser(data.user);
-        // ✅ FIX: No bootstrapUserData here — HomePage useEffect handles fetching
-        // after currentUser is set. Calling it here AND in login() caused the
-        // double state-update storm driving the postMessage render loop.
-      })
+      .then(data => { setCurrentUser(data.user); })
       .catch(() => {
         localStorage.removeItem('attendx_token');
         localStorage.removeItem('attendx_refresh');
       })
       .finally(() => setAuthLoading(false));
-  }, []); // ✅ empty deps — runs once on mount only
+  }, []);
 
   // ── Auth ──────────────────────────────────────────────────────
-  const login = async (email, password) => {
+  const login = useCallback(async (email, password) => {
     const data = await api.auth.login(email, password);
     localStorage.setItem('attendx_token', data.access_token);
     if (data.refresh_token) localStorage.setItem('attendx_refresh', data.refresh_token);
@@ -51,15 +46,10 @@ export function AppProvider({ children }) {
     }
     setCurrentUser(data.user);
     setForceReset(false);
-    // ✅ FIX: Do NOT call bootstrapUserData here.
-    // Setting currentUser triggers a re-render. The route guard in App.js
-    // redirects to "/", which mounts HomePage. HomePage's useEffect
-    // [currentUser?.id] fires and fetches all data exactly once.
-    // Calling bootstrapUserData here too = double fetch = render storm = loop.
     return { success: true };
-  };
+  }, []);
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     try { await api.auth.logout(); } catch (_) {}
     localStorage.removeItem('attendx_token');
     localStorage.removeItem('attendx_refresh');
@@ -74,15 +64,14 @@ export function AppProvider({ children }) {
     setAdminOverview(null);
     setForceReset(false);
     setTaskList([]);
-  };
+  }, []);
 
-  const resetPassword = async (newPassword) => {
+  const resetPassword = useCallback(async (newPassword) => {
     await api.auth.resetPassword(newPassword);
     const data = await api.auth.me();
     setCurrentUser(data.user);
     setForceReset(false);
-    // ✅ No bootstrapUserData here either — same reason as login()
-  };
+  }, []);
 
   const fetchTodayAttendance = useCallback(async () => {
     const data = await api.attendance.getToday();
@@ -108,7 +97,7 @@ export function AppProvider({ children }) {
     return data.employees;
   }, []);
 
-  const checkIn = async (photoFile) => {
+  const checkIn = useCallback(async (photoFile) => {
     const coords = await getCoords();
     const lat = coords?.latitude ?? null;
     const lng = coords?.longitude ?? null;
@@ -119,9 +108,9 @@ export function AppProvider({ children }) {
     const data = await api.attendance.checkIn(lat, lng, photo_url);
     setTodayRecord(data.attendance);
     return data;
-  };
+  }, []);
 
-  const checkOut = async (photoFile) => {
+  const checkOut = useCallback(async (photoFile) => {
     const coords = await getCoords();
     const lat = coords?.latitude ?? null;
     const lng = coords?.longitude ?? null;
@@ -132,21 +121,21 @@ export function AppProvider({ children }) {
     const data = await api.attendance.checkOut(lat, lng, photo_url);
     setTodayRecord(data.attendance);
     return data;
-  };
+  }, []);
 
-  const startBreak = async () => {
+  const startBreak = useCallback(async () => {
     const data = await api.attendance.startBreak();
     if (data.attendance) setTodayRecord(data.attendance);
     return data;
-  };
+  }, []);
 
-  const endBreak = async () => {
+  const endBreak = useCallback(async () => {
     const data = await api.attendance.endBreak();
     if (data.attendance) setTodayRecord(data.attendance);
     return data;
-  };
+  }, []);
 
-  const overrideAttendance = async (id, payload) => api.attendance.override(id, payload);
+  const overrideAttendance = useCallback(async (id, payload) => api.attendance.override(id, payload), []);
 
   const fetchDashboard = useCallback(async (month) => {
     const data = await api.dashboard.me(month);
@@ -166,16 +155,16 @@ export function AppProvider({ children }) {
     return data;
   }, []);
 
-  const sendMessage = async (text) => {
+  const sendMessage = useCallback(async (text) => {
     const data = await api.chat.sendMessage(text);
     setMessages(prev => [...prev, data.message]);
     return data;
-  };
+  }, []);
 
-  const deleteMessage = async (id) => {
+  const deleteMessage = useCallback(async (id) => {
     await api.chat.deleteMessage(id);
     setMessages(prev => prev.filter(m => m.id !== id));
-  };
+  }, []);
 
   const fetchLeaves = useCallback(async (status) => {
     const data = await api.leaves.list(status);
@@ -183,28 +172,28 @@ export function AppProvider({ children }) {
     return data.leaves;
   }, []);
 
-  const applyLeave = async (payload) => {
+  const applyLeave = useCallback(async (payload) => {
     const data = await api.leaves.apply(payload);
     setLeaveList(prev => [data.leave, ...prev]);
     return data;
-  };
+  }, []);
 
-  const approveLeave = async (id) => {
+  const approveLeave = useCallback(async (id) => {
     const data = await api.leaves.approve(id);
     setLeaveList(prev => prev.map(l => l.id === id ? data.leave : l));
     return data;
-  };
+  }, []);
 
-  const rejectLeave = async (id) => {
+  const rejectLeave = useCallback(async (id) => {
     const data = await api.leaves.reject(id);
     setLeaveList(prev => prev.map(l => l.id === id ? data.leave : l));
     return data;
-  };
+  }, []);
 
-  const cancelLeave = async (id) => {
+  const cancelLeave = useCallback(async (id) => {
     await api.leaves.cancel(id);
     setLeaveList(prev => prev.filter(l => l.id !== id));
-  };
+  }, []);
 
   const fetchNotifications = useCallback(async () => {
     const data = await api.notifications.list();
@@ -213,32 +202,32 @@ export function AppProvider({ children }) {
     return data;
   }, []);
 
-  const markAllNotifRead = async () => {
+  const markAllNotifRead = useCallback(async () => {
     await api.notifications.markAllRead();
     setNotifList(prev => prev.map(n => ({ ...n, is_read: true })));
     setUnreadCount(0);
-  };
+  }, []);
 
-  const markNotifRead = async (id) => {
+  const markNotifRead = useCallback(async (id) => {
     await api.notifications.markOneRead(id);
     setNotifList(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n));
     setUnreadCount(prev => Math.max(0, prev - 1));
-  };
+  }, []);
 
-  const createUser = async (payload) => api.users.create(payload);
+  const createUser = useCallback(async (payload) => api.users.create(payload), []);
 
-  const updateUser = async (id, payload) => {
+  const updateUser = useCallback(async (id, payload) => {
     const data = await api.users.update(id, payload);
     if (currentUser && id === currentUser.id) setCurrentUser(data.user);
     return data;
-  };
+  }, [currentUser]);
 
-  const uploadProfilePhoto = async (photoFile) => {
+  const uploadProfilePhoto = useCallback(async (photoFile) => {
     const url  = await uploadPhotoToImageKit(photoFile, 'profile');
     const data = await api.users.uploadProfilePhoto(url);
     if (data.user) setCurrentUser(prev => ({ ...prev, ...data.user }));
     return data;
-  };
+  }, []);
 
   const fetchTasks = useCallback(async (filters) => {
     const data = await api.tasks.list(filters);
@@ -246,57 +235,67 @@ export function AppProvider({ children }) {
     return data.tasks;
   }, []);
 
-  const createTask = async (payload) => {
+  const createTask = useCallback(async (payload) => {
     const data = await api.tasks.create(payload);
     setTaskList(prev => [data.task, ...prev]);
     return data;
-  };
+  }, []);
 
-  const updateTask = async (id, payload) => {
+  const updateTask = useCallback(async (id, payload) => {
     const data = await api.tasks.update(id, payload);
     setTaskList(prev => prev.map(t => t.id === id ? data.task : t));
     return data;
-  };
+  }, []);
 
-  const deleteTask = async (id) => {
+  const deleteTask = useCallback(async (id) => {
     await api.tasks.delete(id);
     setTaskList(prev => prev.filter(t => t.id !== id));
-  };
+  }, []);
 
-  const completeTask = async (id) => {
+  const completeTask = useCallback(async (id) => {
     const data = await api.tasks.complete(id);
     setTaskList(prev => prev.map(t => t.id === id ? data.task : t));
     return data;
-  };
+  }, []);
 
-  const requestExtension = async (id, payload) => {
+  const requestExtension = useCallback(async (id, payload) => {
     const data = await api.tasks.requestExtension(id, payload);
     setTaskList(prev => prev.map(t => t.id === id ? data.task : t));
     return data;
-  };
+  }, []);
 
-  const reviewExtension = async (id, payload) => {
+  const reviewExtension = useCallback(async (id, payload) => {
     const data = await api.tasks.reviewExtension(id, payload);
     setTaskList(prev => prev.map(t => t.id === id ? data.task : t));
     return data;
-  };
+  }, []);
+
+  // ── Memoize the entire context value ─────────────────────────
+  // Without useMemo, a new object is created every render, causing
+  // ALL consumers to re-render even when nothing changed — the loop.
+  const value = useMemo(() => ({
+    currentUser, authLoading, forceReset,
+    login, logout, resetPassword,
+    todayRecord, attendanceHistory, monthlySummary,
+    fetchTodayAttendance, fetchAttendanceHistory, fetchMonthlySummary,
+    checkIn, checkOut, startBreak, endBreak, overrideAttendance,
+    allEmployeesToday, fetchAllEmployeesToday,
+    dashboardStats, adminOverview, fetchDashboard, fetchAdminOverview,
+    messages, fetchMessages, sendMessage, deleteMessage,
+    leaveList, fetchLeaves, applyLeave, approveLeave, rejectLeave, cancelLeave,
+    notifList, unreadCount, fetchNotifications, markAllNotifRead, markNotifRead,
+    createUser, updateUser, uploadProfilePhoto,
+    taskList, fetchTasks, createTask, updateTask, deleteTask,
+    completeTask, requestExtension, reviewExtension,
+  }), [ // eslint-disable-line react-hooks/exhaustive-deps
+    currentUser, authLoading, forceReset,
+    todayRecord, attendanceHistory, monthlySummary,
+    allEmployeesToday, dashboardStats, adminOverview,
+    messages, leaveList, notifList, unreadCount, taskList,
+  ]);
 
   return (
-    <AppContext.Provider value={{
-      currentUser, authLoading, forceReset,
-      login, logout, resetPassword,
-      todayRecord, attendanceHistory, monthlySummary,
-      fetchTodayAttendance, fetchAttendanceHistory, fetchMonthlySummary,
-      checkIn, checkOut, startBreak, endBreak, overrideAttendance,
-      allEmployeesToday, fetchAllEmployeesToday,
-      dashboardStats, adminOverview, fetchDashboard, fetchAdminOverview,
-      messages, fetchMessages, sendMessage, deleteMessage,
-      leaveList, fetchLeaves, applyLeave, approveLeave, rejectLeave, cancelLeave,
-      notifList, unreadCount, fetchNotifications, markAllNotifRead, markNotifRead,
-      createUser, updateUser, uploadProfilePhoto,
-      taskList, fetchTasks, createTask, updateTask, deleteTask,
-      completeTask, requestExtension, reviewExtension,
-    }}>
+    <AppContext.Provider value={value}>
       {children}
     </AppContext.Provider>
   );
