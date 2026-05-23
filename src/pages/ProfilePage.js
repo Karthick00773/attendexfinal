@@ -37,10 +37,11 @@ export default function ProfilePage() {
   const [photoUploading, setPhotoUploading] = useState(false);
   const fileRef = useRef(null);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     fetchMonthlySummary();
     fetchAttendanceHistory();
-  }, [fetchMonthlySummary, fetchAttendanceHistory]);
+  }, []);
 
   useEffect(() => {
     if (currentUser) setEditForm({ phone: currentUser.phone||'', designation: currentUser.designation||'' });

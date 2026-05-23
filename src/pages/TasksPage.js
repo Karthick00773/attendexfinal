@@ -119,7 +119,7 @@ export default function TasksPage() {
     if (isAdminOrCeo) {
       api.users.list().then(d => setAllUsers(d.users || [])).catch(() => {});
     }
-    // eslint-disable-next-line
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleCreate = async (e) => {

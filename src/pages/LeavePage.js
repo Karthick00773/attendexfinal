@@ -81,7 +81,8 @@ export default function LeavePage() {
   const [, setActionLoading] = useState(null);
   const [error, setError] = useState('');
 
-  useEffect(() => { fetchLeaves(); }, [fetchLeaves]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { fetchLeaves(); }, []);
 
   const myLeaves = isEmployee ? leaveList.filter(l => l.user_id === currentUser.id) : leaveList;
   const filteredLeaves = filter === 'all' ? myLeaves : myLeaves.filter(l => l.status === filter);
