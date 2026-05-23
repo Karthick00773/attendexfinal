@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import './HomePage.css';
@@ -49,9 +49,17 @@ export default function HomePage() {
 
   const isAdminOrCeo = ['admin','ceo'].includes(currentUser?.role);
 
-  // ── Re-fetch everything whenever the logged-in user changes ──
+  // ✅ FIX: Use a ref to track the last userId we fetched for.
+  // This prevents the effect from re-running when function references
+  // (fetchDashboard, etc.) change identity, which was causing the loop.
+  const fetchedForRef = useRef(null);
+
   useEffect(() => {
-    if (!currentUser) return; // wait until user is loaded
+    if (!currentUser?.id) return;
+    // ✅ Only fetch if we haven't already fetched for this user ID.
+    // This is the key guard that stops the render storm.
+    if (fetchedForRef.current === currentUser.id) return;
+    fetchedForRef.current = currentUser.id;
 
     fetchDashboard();
     fetchNotifications();
@@ -60,8 +68,11 @@ export default function HomePage() {
       fetchAdminOverview();
       fetchAllEmployeesToday();
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentUser?.id, isAdminOrCeo]); // re-runs on login / role change
+  // ✅ Only re-run when the actual user ID or role changes — NOT on every
+  // function reference change. The fetchX functions are stable (useCallback
+  // with [] deps) but listing them here was causing unnecessary re-runs
+  // when AppContext re-rendered for any reason.
+  }, [currentUser?.id, currentUser?.role]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const summary = dashboardStats?.month_summary || {};
   const user    = dashboardStats?.user || currentUser;

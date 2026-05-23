@@ -21,48 +21,25 @@ export function AppProvider({ children }) {
   const [unreadCount, setUnreadCount]             = useState(0);
   const [taskList, setTaskList]                   = useState([]);
 
-  // Fetch dashboard data in background — does NOT block navigation
-  const bootstrapUserData = useCallback(async (user) => {
-    if (!user) return;
-    const isAdminOrCeo = ['admin', 'ceo'].includes(user.role);
-    const promises = [
-      api.dashboard.me().then(data => setDashboardStats(data)).catch(() => {}),
-      api.notifications.list().then(data => {
-        setNotifList(data.notifications || []);
-        setUnreadCount(data.unread_count || 0);
-      }).catch(() => {}),
-    ];
-    if (isAdminOrCeo) {
-      promises.push(
-        api.dashboard.overview().then(data => setAdminOverview(data)).catch(() => {}),
-        api.attendance.getAllToday().then(data => setAllEmployeesToday(data.employees || [])).catch(() => {}),
-      );
-    }
-    await Promise.all(promises);
-  }, []);
-
   // ── Restore session on mount ──────────────────────────────────
-  // authLoading=true until we know if there's a valid session.
-  // bootstrapUserData runs in background — does not extend authLoading.
   useEffect(() => {
     const token = localStorage.getItem('attendx_token');
     if (!token) { setAuthLoading(false); return; }
     api.auth.me()
       .then(data => {
         setCurrentUser(data.user);
-        bootstrapUserData(data.user); // fire and forget — don't await
+        // ✅ FIX: No bootstrapUserData here — HomePage useEffect handles fetching
+        // after currentUser is set. Calling it here AND in login() caused the
+        // double state-update storm driving the postMessage render loop.
       })
       .catch(() => {
         localStorage.removeItem('attendx_token');
         localStorage.removeItem('attendx_refresh');
       })
-      .finally(() => setAuthLoading(false)); // resolve auth as soon as user is known
-  }, [bootstrapUserData]);
+      .finally(() => setAuthLoading(false));
+  }, []); // ✅ empty deps — runs once on mount only
 
   // ── Auth ──────────────────────────────────────────────────────
-  // login() sets currentUser immediately so the route guard redirects to /.
-  // bootstrapUserData runs in background — HomePage useEffect re-renders
-  // as data arrives. No authLoading flip needed — that caused the loop.
   const login = async (email, password) => {
     const data = await api.auth.login(email, password);
     localStorage.setItem('attendx_token', data.access_token);
@@ -74,7 +51,11 @@ export function AppProvider({ children }) {
     }
     setCurrentUser(data.user);
     setForceReset(false);
-    bootstrapUserData(data.user); // fire and forget — don't await
+    // ✅ FIX: Do NOT call bootstrapUserData here.
+    // Setting currentUser triggers a re-render. The route guard in App.js
+    // redirects to "/", which mounts HomePage. HomePage's useEffect
+    // [currentUser?.id] fires and fetches all data exactly once.
+    // Calling bootstrapUserData here too = double fetch = render storm = loop.
     return { success: true };
   };
 
@@ -100,6 +81,7 @@ export function AppProvider({ children }) {
     const data = await api.auth.me();
     setCurrentUser(data.user);
     setForceReset(false);
+    // ✅ No bootstrapUserData here either — same reason as login()
   };
 
   const fetchTodayAttendance = useCallback(async () => {
