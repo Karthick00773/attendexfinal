@@ -13,7 +13,7 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPw, setShowPw] = useState(false);
-  const [isActive, setIsActive] = useState(false); // toggle panel state
+  const [isActive, setIsActive] = useState(false);
   const [forgotEmail, setForgotEmail] = useState('');
   const [forgotError, setForgotError] = useState('');
   const [forgotSuccess, setForgotSuccess] = useState('');
@@ -25,7 +25,12 @@ export default function LoginPage() {
     setLoading(true);
     try {
       const result = await login(email, password);
-      if (!result.forceReset) navigate('/');
+      // Do NOT call navigate('/') here.
+      // login() sets authLoading=true, fetches all data, then sets
+      // authLoading=false. At that point currentUser is set, and the
+      // route guard in App.js (<currentUser ? <Navigate to="/" /> : <LoginPage />)
+      // automatically redirects — with data already in state.
+      if (result.forceReset) navigate('/login'); // stay on login for password reset
     } catch (err) {
       setError(err.message || 'Invalid email or password. Please try again.');
     } finally {
@@ -55,13 +60,11 @@ export default function LoginPage() {
     setForgotSuccess('');
     setForgotLoading(true);
     try {
-      // Simulate sending password reset email
       if (!forgotEmail) {
         setForgotError('Please enter your email address.');
         setForgotLoading(false);
         return;
       }
-      // In a real app, this would call an API to send a reset email
       setForgotSuccess('Password reset link sent to your email. Please check your inbox.');
       setForgotEmail('');
       setTimeout(() => setForgotSuccess(''), 5000);
@@ -111,27 +114,35 @@ export default function LoginPage() {
     <div className="login-page">
       <div className={`login-container${isActive ? ' active' : ''}`}>
 
-        {/* ── Forgot Password form (left slot, hidden by default) ── */}
+        {/* ── Forgot Password form ── */}
         <div className="form-container sign-up">
           <form onSubmit={handleForgotPassword}>
             <h1>Forgot Password?</h1>
-            <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 16 }}>Enter your email address and we'll send you a link to reset your password.</p>
+            <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 16 }}>
+              Enter your email address and we'll send you a link to reset your password.
+            </p>
             <input type="email" placeholder="Enter your email"
               value={forgotEmail} onChange={e => setForgotEmail(e.target.value)} required />
-            {forgotSuccess && <div className="login-success" style={{ width: '100%', marginTop: 6, background: '#dcfce7', borderColor: '#86efac', color: '#16a34a' }}>{forgotSuccess}</div>}
-            {forgotError && <div className="login-error" style={{ width: '100%', marginTop: 6 }}>{forgotError}</div>}
+            {forgotSuccess && (
+              <div className="login-success" style={{ width:'100%', marginTop:6, background:'#dcfce7', borderColor:'#86efac', color:'#16a34a' }}>
+                {forgotSuccess}
+              </div>
+            )}
+            {forgotError && (
+              <div className="login-error" style={{ width:'100%', marginTop:6 }}>{forgotError}</div>
+            )}
             <button type="submit" disabled={forgotLoading}>
               {forgotLoading ? 'Sending...' : 'Send Reset Link'}
             </button>
           </form>
         </div>
 
-        {/* ── Sign-In form (right slot) ── */}
+        {/* ── Sign-In form ── */}
         <div className="form-container sign-in">
           <form onSubmit={handleLogin}>
             <h1>Sign In</h1>
-
             <span>Use your email &amp; password to sign in</span>
+
             <input type="email" placeholder="Email"
               value={email} onChange={e => setEmail(e.target.value)} required autoComplete="email" />
 
@@ -144,8 +155,11 @@ export default function LoginPage() {
                 onChange={e => setPassword(e.target.value)}
                 required
                 autoComplete="current-password"
-                style={{ width: '100%', background: '#eee', border: 'none', margin: '8px 0',
-                  padding: '10px 38px 10px 15px', fontSize: 13, borderRadius: 8, outline: 'none' }}
+                style={{
+                  width: '100%', background: '#eee', border: 'none',
+                  margin: '8px 0', padding: '10px 38px 10px 15px',
+                  fontSize: 13, borderRadius: 8, outline: 'none',
+                }}
               />
               <button type="button" className="pw-toggle" onClick={() => setShowPw(s => !s)}>
                 {showPw
@@ -155,9 +169,13 @@ export default function LoginPage() {
               </button>
             </div>
 
-            <button type="button" className="link-btn" onClick={() => setIsActive(true)}>Forget Your Password?</button>
+            <button type="button" className="link-btn" onClick={() => setIsActive(true)}>
+              Forget Your Password?
+            </button>
 
-            {error && <div className="login-error" style={{ width: '100%', marginTop: 6 }}>{error}</div>}
+            {error && (
+              <div className="login-error" style={{ width: '100%', marginTop: 6 }}>{error}</div>
+            )}
 
             <button type="submit" disabled={loading}>
               {loading ? 'Signing in…' : 'Sign In'}
