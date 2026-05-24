@@ -1,3 +1,4 @@
+/* ── Desktop sidebar ─────────────────────────────────────────── */
 .sidebar {
   position: fixed;
   left: 0; top: 0; bottom: 0;
@@ -168,21 +169,11 @@
 }
 .logout-btn:hover { background: var(--red-light); }
 
-/* Mobile */
-.sidebar-hamburger {
+/* ── Mobile top bar ──────────────────────────────────────────── */
+/* Hidden on desktop, shown on mobile as a fixed top strip.      */
+/* main-content gets padding-top to sit below it — no overlap.   */
+.mobile-topbar {
   display: none;
-  position: fixed;
-  top: 14px; left: 14px;
-  z-index: 200;
-  background: #fff;
-  border: 1.5px solid var(--border);
-  border-radius: 12px;
-  width: 44px; height: 44px;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  box-shadow: var(--shadow);
-  color: var(--accent);
 }
 
 .sidebar-overlay {
@@ -194,12 +185,83 @@
   backdrop-filter: blur(2px);
 }
 
+/* desktop: hide the old floating hamburger button (no longer used) */
+.sidebar-hamburger { display: none !important; }
+
+/* desktop: show bell in sidebar */
+.desktop-only { display: flex; }
+
+/* ── Mobile breakpoint ───────────────────────────────────────── */
 @media (max-width: 768px) {
-  .sidebar-hamburger { display: flex; }
+
+  /* Top bar: fixed strip at top, full width, 56px tall */
+  .mobile-topbar {
+    display: flex;
+    align-items: center;
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: 56px;
+    background: #fff;
+    border-bottom: 1px solid var(--border);
+    box-shadow: 0 2px 12px rgba(124,58,237,0.07);
+    z-index: 200;
+    padding: 0 12px;
+    gap: 10px;
+  }
+
+  .topbar-menu-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    background: var(--soft-purple, #f5f3ff);
+    border: none;
+    color: var(--accent, #7c3aed);
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  .topbar-title {
+    flex: 1;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text, #1a1a2e);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .topbar-notif-btn {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    background: var(--soft-purple, #f5f3ff);
+    border: none;
+    color: var(--accent, #7c3aed);
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  /* Sidebar slides in from left */
   .sidebar {
     transform: translateX(-100%);
     width: 260px;
+    /* Starts below the top bar */
+    top: 56px;
+    padding-top: 16px;
   }
   .sidebar-open { transform: translateX(0); }
-  .sidebar-overlay { display: block; }
+
+  /* Overlay covers everything except the top bar */
+  .sidebar-overlay {
+    display: block;
+    top: 56px;
+  }
+
+  /* Hide bell inside sidebar on mobile (it's in the top bar) */
+  .desktop-only { display: none !important; }
 }

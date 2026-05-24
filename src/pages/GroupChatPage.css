@@ -4,6 +4,7 @@
 
 /* ── Layout ───────────────────────────────────────────────── */
 .chat-layout {
+  color-scheme: light;
   display: flex;
   flex-direction: column;
   height: 100vh;
@@ -408,34 +409,4 @@
   15%  { opacity: 1; transform: translateX(-50%) translateY(0); }
   75%  { opacity: 1; }
   100% { opacity: 0; }
-}
-
-/* ── Dark mode ────────────────────────────────────────────── */
-@media (prefers-color-scheme: dark) {
-  .chat-layout     { background: #0f0f10; }
-  .chat-header     { background: #1a1a1d; border-color: #2a2a2d; }
-  .chat-group-name { color: #f9fafb; }
-  .chat-group-icon { background: #2e1f4e; color: #a78bfa; }
-  .chat-group-sub  { color: #6b7280; }
-
-  .chat-date-divider::before,
-  .chat-date-divider::after { background: #2a2a2d; }
-  .chat-date-divider span   { background: #1f1f22; color: #6b7280; }
-
-  .chat-bubble-them { background: #1f1f22; color: #f3f4f6; border-color: #2a2a2d; }
-  .chat-bubble-me   { background: #6d28d9; }
-
-  .msg-menu       { background: #1f1f22; border-color: #2a2a2d; box-shadow: 0 8px 24px rgba(0,0,0,0.4); }
-  .msg-menu-item  { color: #e5e7eb; }
-  .msg-menu-item:hover { background: #2a2a2d; }
-  .msg-menu-item--danger:hover { background: #450a0a; }
-
-  .chat-input-bar  { background: #1a1a1d; border-color: #2a2a2d; }
-  .chat-input-wrap { background: #111113; border-color: #2a2a2d; }
-  .chat-input      { color: #f3f4f6; }
-  .chat-input::placeholder { color: #6b7280; }
-  .chat-send-btn:disabled  { background: #2a2a2d; color: #4b5563; }
-
-  .chat-error { background: #2d0a0a; color: #fca5a5; border-color: #7f1d1d; }
-  .chat-time  { color: #6b7280; }
 }

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import './Sidebar.css';
 
@@ -16,9 +16,21 @@ const icons = {
   x:          (<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>),
 };
 
+// Map routes to page titles for the mobile top bar
+const pageTitles = {
+  '/':                  'Home',
+  '/attendance':        'Attendance',
+  '/attendance/manage': 'Team Attendance',
+  '/tasks':             'Tasks',
+  '/chat':              'Group Chat',
+  '/leaves':            'Leave Requests',
+  '/profile':           'Profile',
+};
+
 export default function Sidebar() {
   const { currentUser, logout, unreadCount, taskList } = useApp();
-  const navigate = useNavigate();
+  const navigate  = useNavigate();
+  const location  = useLocation();
   const [open, setOpen] = useState(false);
 
   if (!currentUser) return null;
@@ -38,38 +50,44 @@ export default function Sidebar() {
     { to: '/',                  label: 'Home',            icon: 'home'       },
     { to: '/attendance/manage', label: 'Team Attendance', icon: 'attendance' },
     { to: '/leaves',            label: 'Leave Requests',  icon: 'leave'      },
-    { to: '/tasks',             label: 'Tasks',           icon: 'tasks',  badge: pendingExtCount > 0 ? pendingExtCount : null },
+    { to: '/tasks',             label: 'Tasks',           icon: 'tasks', badge: pendingExtCount > 0 ? pendingExtCount : null },
     { to: '/chat',              label: 'Group Chat',      icon: 'chat'       },
     { to: '/profile',           label: 'Profile',         icon: 'profile'    },
   ];
 
-  const ceoNav = [
-    { to: '/',                  label: 'Home',            icon: 'home'       },
-    { to: '/attendance/manage', label: 'Team Attendance', icon: 'attendance' },
-    { to: '/leaves',            label: 'Leave Requests',  icon: 'leave'      },
-    { to: '/tasks',             label: 'Tasks',           icon: 'tasks',  badge: pendingExtCount > 0 ? pendingExtCount : null },
-    { to: '/chat',              label: 'Group Chat',      icon: 'chat'       },
-    { to: '/profile',           label: 'Profile',         icon: 'profile'    },
-  ];
+  const ceoNav = adminNav;
 
   const navItems = currentUser.role === 'employee' ? employeeNav
     : currentUser.role === 'admin' ? adminNav : ceoNav;
 
-  const roleColor = { employee:'#a855f7', admin:'#3b82f6', ceo:'#f59e0b' };
+  const roleColor = { employee: '#a855f7', admin: '#3b82f6', ceo: '#f59e0b' };
 
   const handleLogout = async () => {
+    setOpen(false);
     await logout();
     navigate('/login');
   };
 
+  const pageTitle = pageTitles[location.pathname] || 'AttendX';
+
   return (
     <>
-      <button className="sidebar-hamburger" onClick={() => setOpen(o => !o)}>
-        {open ? icons.x : icons.menu}
-      </button>
+      {/* ── Mobile top bar — fixed, never overlaps content ───── */}
+      <div className="mobile-topbar">
+        <button className="topbar-menu-btn" onClick={() => setOpen(o => !o)} aria-label="Open menu">
+          {open ? icons.x : icons.menu}
+        </button>
+        <span className="topbar-title">{pageTitle}</span>
+        <button className="topbar-notif-btn" onClick={() => { navigate('/'); setOpen(false); }}>
+          {icons.bell}
+          {unreadCount > 0 && <span className="notif-badge">{unreadCount}</span>}
+        </button>
+      </div>
 
+      {/* Overlay */}
       {open && <div className="sidebar-overlay" onClick={() => setOpen(false)} />}
 
+      {/* ── Sidebar ──────────────────────────────────────────── */}
       <aside className={`sidebar ${open ? 'sidebar-open' : ''}`}>
         {/* Logo */}
         <div className="sidebar-logo">
@@ -80,13 +98,13 @@ export default function Sidebar() {
           </div>
         </div>
 
-        <div className="divider" style={{ margin:'0 16px 16px' }} />
+        <div className="divider" style={{ margin: '0 16px 16px' }} />
 
         {/* User info */}
         <div className="sidebar-user">
-          <div className="avatar avatar-md" style={{ background:'var(--lavender)', color:'var(--accent)', fontSize:'1rem', fontWeight:700 }}>
+          <div className="avatar avatar-md" style={{ background: 'var(--lavender)', color: 'var(--accent)', fontSize: '1rem', fontWeight: 700 }}>
             {currentUser.profile_photo_url
-              ? <img src={currentUser.profile_photo_url} alt="avatar" style={{ width:'100%', height:'100%', borderRadius:'50%', objectFit:'cover' }} />
+              ? <img src={currentUser.profile_photo_url} alt="avatar" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
               : currentUser.avatar_initials}
           </div>
           <div className="sidebar-user-info">
@@ -95,13 +113,14 @@ export default function Sidebar() {
               {currentUser.role?.toUpperCase()}
             </span>
           </div>
-          <button className="notif-btn" onClick={() => { navigate('/'); setOpen(false); }}>
+          {/* Bell only in sidebar on desktop */}
+          <button className="notif-btn desktop-only" onClick={() => { navigate('/'); setOpen(false); }}>
             {icons.bell}
             {unreadCount > 0 && <span className="notif-badge">{unreadCount}</span>}
           </button>
         </div>
 
-        <div className="divider" style={{ margin:'16px 16px' }} />
+        <div className="divider" style={{ margin: '16px 16px' }} />
 
         {/* Nav */}
         <nav className="sidebar-nav">
@@ -115,9 +134,9 @@ export default function Sidebar() {
               onClick={() => setOpen(false)}
             >
               <span className="nav-icon">{icons[item.icon]}</span>
-              <span style={{ flex:1 }}>{item.label}</span>
+              <span style={{ flex: 1 }}>{item.label}</span>
               {item.badge && (
-                <span style={{ background:'#f59e0b', color:'white', borderRadius:12, fontSize:'0.7rem', padding:'1px 6px', fontWeight:700 }}>
+                <span style={{ background: '#f59e0b', color: 'white', borderRadius: 12, fontSize: '0.7rem', padding: '1px 6px', fontWeight: 700 }}>
                   {item.badge}
                 </span>
               )}
@@ -125,7 +144,7 @@ export default function Sidebar() {
           ))}
         </nav>
 
-        <div style={{ flex:1 }} />
+        <div style={{ flex: 1 }} />
 
         {/* Logout */}
         <div className="sidebar-footer">
