@@ -618,7 +618,7 @@ form a {
   height: 56px;
   border-radius: 16px;
   background: #f0ecff;
-  color: #7c3aed;
+  color: rgb(63, 212, 175);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -679,7 +679,7 @@ form a {
 }
 
 .reset-form input:focus {
-  border-color: #7c3aed;
+  border-color:rgb(63, 212, 175);
   box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.12);
   background: #fff;
 }
