@@ -680,7 +680,7 @@ form a {
 
 .reset-form input:focus {
   border-color:rgb(63, 212, 175);
-  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.12);
+  box-shadow: 0 0 0 3px rgb(63, 212, 175);
   background: #fff;
 }
 
@@ -691,7 +691,7 @@ form a {
 .reset-submit {
   width: 100%;
   padding: 13px;
-  background: linear-gradient(135deg, #7c3aed, #6d28d9);
+  background: linear-gradient(rgb(63, 212, 175), rgb(56, 180, 150));
   color: #fff;
   border: none;
   border-radius: 10px;
