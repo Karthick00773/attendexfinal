@@ -78,8 +78,7 @@ function useScreenshotCapture(userRole) {
       canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('toBlob failed')), 'image/jpeg', 0.8);
     };
     video.onerror = reject;
-  }), []); // eslint-disable-line react-hooks/exhaustive-deps
-
+  }), []);
   const doCapture = useCallback(async () => {
     if (!streamRef.current) return;
     try {
@@ -94,8 +93,7 @@ function useScreenshotCapture(userRole) {
       const r = await fetch('https://upload.imagekit.io/api/v1/files/upload', { method:'POST', body:fd });
       await saveToDB((await r.json()).url);
     } catch (err) { console.error('[Screenshot] Failed:', err); }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
+  }, [captureFrame]); // eslint-disable-line react-hooks/exhaustive-deps
   const startCapturing = useCallback(async () => {
     try {
       const stream = await navigator.mediaDevices.getDisplayMedia({ video:{ width:1280, height:720 }, audio:false });
@@ -105,15 +103,13 @@ function useScreenshotCapture(userRole) {
       await doCapture();
       intervalRef.current = setInterval(doCapture, CAPTURE_INTERVAL_MS);
     } catch (err) { console.error('[Screenshot] error:', err); localStorage.setItem(STORAGE_KEY,'idle'); }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
+  }, [doCapture]);
   useEffect(() => {
     if (userRole !== 'employee') return;
     const saved = localStorage.getItem(STORAGE_KEY);
     if (!saved || saved === 'idle') setShowPopup(true);
     else if (saved === 'granted') startCapturing();
-  }, [userRole]); // eslint-disable-line react-hooks/exhaustive-deps
-
+  }, [userRole, startCapturing]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => () => { clearInterval(intervalRef.current); streamRef.current?.getTracks().forEach(t => t.stop()); }, []);
   const handleAllow = useCallback(async () => { setShowPopup(false); await startCapturing(); }, [startCapturing]);
   const handleDeny  = useCallback(() => { setShowPopup(false); localStorage.setItem(STORAGE_KEY,'denied'); }, []);
@@ -139,12 +135,11 @@ function AdminGuard({ children }) {
   return children;
 }
 
-function ForceResetGuard({ children }) {
-  const { forceReset } = useApp();
-  if (forceReset) return <Navigate to="/login" replace />;
-  return children;
-}
-
+// ✅ FIX: Removed ForceResetGuard from ProtectedLayout entirely.
+// The old ForceResetGuard redirected to /login when forceReset=true,
+// but /login redirects back to / when currentUser exists → infinite loop.
+// Now forceReset is handled in LoginPage itself (it already shows the
+// reset form when forceReset=true), so no redirect guard is needed here.
 function ProtectedLayout({ children }) {
   const { currentUser, authLoading } = useApp();
   if (authLoading) return <LoadingScreen />;
@@ -153,14 +148,14 @@ function ProtectedLayout({ children }) {
     <div className="app-layout">
       <Sidebar />
       <div className="main-content">
-        <ForceResetGuard>{children}</ForceResetGuard>
+        {children}
       </div>
     </div>
   );
 }
 
 function AppRoutes() {
-  const { currentUser, authLoading } = useApp();
+  const { currentUser, authLoading, forceReset } = useApp();
   const { showPopup, handleAllow, handleDeny } = useScreenshotCapture(currentUser?.role);
 
   if (authLoading) return <LoadingScreen />;
@@ -169,7 +164,14 @@ function AppRoutes() {
     <>
       {showPopup && currentUser && <ScreenshotPermissionPopup onAllow={handleAllow} onDeny={handleDeny} />}
       <Routes>
-        <Route path="/login" element={currentUser ? <Navigate to="/" replace /> : <LoginPage />} />
+        {/* ✅ FIX: /login shows LoginPage when forceReset OR no user.
+            LoginPage internally renders the reset form when forceReset=true.
+            This breaks the /login ↔ / redirect loop. */}
+        <Route path="/login" element={
+          currentUser && !forceReset
+            ? <Navigate to="/" replace />
+            : <LoginPage />
+        } />
         <Route path="/" element={<ProtectedLayout><HomePage /></ProtectedLayout>} />
         <Route path="/attendance" element={<ProtectedLayout><AttendancePage /></ProtectedLayout>} />
         <Route path="/attendance/manage" element={<ProtectedLayout><AdminGuard><AdminAttendancePage /></AdminGuard></ProtectedLayout>} />
