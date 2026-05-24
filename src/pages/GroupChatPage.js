@@ -243,8 +243,7 @@ export default function GroupChatPage() {
   const inputRef  = useRef(null);
   const pollRef   = useRef(null);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { fetchMessages(); }, []);
+  useEffect(() => { fetchMessages(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     pollRef.current = setInterval(async () => {
@@ -258,16 +257,20 @@ export default function GroupChatPage() {
   }, [messages]);
 
   // Build a map of user_id → richest user object seen across all messages.
+  // This ensures even messages with sparse/missing `users` data still display
+  // the correct name, photo, and role pulled from other messages by that user.
   const usersMap = useMemo(() => {
     const map = {};
     messages.forEach(m => {
       if (m.user_id && m.users && m.users.name) {
         const existing = map[m.user_id];
+        // Keep the version with more fields (richer profile data)
         if (!existing || Object.keys(m.users).length > Object.keys(existing).length) {
           map[m.user_id] = m.users;
         }
       }
     });
+    // Always pin the current user so self-messages resolve correctly too
     if (currentUser?.id) {
       map[currentUser.id] = currentUser;
     }
@@ -312,8 +315,10 @@ export default function GroupChatPage() {
     });
   };
 
+  // 1. Create a reversed copy of the messages array so Oldest is at Index 0
   const chronologicalMessages = [...messages].reverse();
 
+  // 2. Map the reactions onto the correctly ordered array
   const mergedMessages = chronologicalMessages.map(m => ({
     ...m,
     reactions: { ...(m.reactions || {}), ...(localReactions[m.id] || {}) },

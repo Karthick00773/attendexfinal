@@ -21,23 +21,46 @@ export function AppProvider({ children }) {
   const [unreadCount, setUnreadCount]             = useState(0);
   const [taskList, setTaskList]                   = useState([]);
 
-  // Keep a ref to currentUser so callbacks can read the latest value
-  // without needing it in their dependency arrays (which would cause re-renders).
+  // Ref so callbacks can always read the latest currentUser
+  // without needing it as a useCallback dependency (which would cause re-renders).
   const currentUserRef = useRef(currentUser);
   useEffect(() => { currentUserRef.current = currentUser; }, [currentUser]);
+
+  // ── Bootstrap data after login ────────────────────────────────
+  const bootstrapUserData = useCallback(async (user) => {
+    if (!user) return;
+    const isAdminOrCeo = ['admin', 'ceo'].includes(user.role);
+    const promises = [
+      api.dashboard.me().then(data => setDashboardStats(data)).catch(() => {}),
+      api.notifications.list().then(data => {
+        setNotifList(data.notifications || []);
+        setUnreadCount(data.unread_count || 0);
+      }).catch(() => {}),
+    ];
+    if (isAdminOrCeo) {
+      promises.push(
+        api.dashboard.overview().then(data => setAdminOverview(data)).catch(() => {}),
+        api.attendance.getAllToday().then(data => setAllEmployeesToday(data.employees || [])).catch(() => {}),
+      );
+    }
+    await Promise.all(promises);
+  }, []); // stable — no deps
 
   // ── Restore session on mount ──────────────────────────────────
   useEffect(() => {
     const token = localStorage.getItem('attendx_token');
     if (!token) { setAuthLoading(false); return; }
     api.auth.me()
-      .then(data => { setCurrentUser(data.user); })
+      .then(data => {
+        setCurrentUser(data.user);
+        bootstrapUserData(data.user);
+      })
       .catch(() => {
         localStorage.removeItem('attendx_token');
         localStorage.removeItem('attendx_refresh');
       })
       .finally(() => setAuthLoading(false));
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Auth ──────────────────────────────────────────────────────
   const login = useCallback(async (email, password) => {
@@ -51,8 +74,9 @@ export function AppProvider({ children }) {
     }
     setCurrentUser(data.user);
     setForceReset(false);
+    bootstrapUserData(data.user);
     return { success: true };
-  }, []);
+  }, [bootstrapUserData]);
 
   const logout = useCallback(async () => {
     try { await api.auth.logout(); } catch (_) {}
@@ -221,16 +245,14 @@ export function AppProvider({ children }) {
 
   const createUser = useCallback(async (payload) => api.users.create(payload), []);
 
-  // ✅ FIX: Use currentUserRef instead of currentUser in deps.
-  // Previously [currentUser] caused updateUser to get a new reference on every
-  // login/profile update, which re-triggered all consumers → infinite loop.
+  // Uses ref so it doesn't need currentUser as a dependency
   const updateUser = useCallback(async (id, payload) => {
     const data = await api.users.update(id, payload);
     if (currentUserRef.current && id === currentUserRef.current.id) {
       setCurrentUser(data.user);
     }
     return data;
-  }, []); // no deps needed — reads currentUser via ref
+  }, []);
 
   const uploadProfilePhoto = useCallback(async (photoFile) => {
     const url  = await uploadPhotoToImageKit(photoFile, 'profile');
@@ -280,6 +302,11 @@ export function AppProvider({ children }) {
     return data;
   }, []);
 
+  // ── THE KEY FIX: useMemo on the context value ─────────────────
+  // Without this, a NEW object is passed to every consumer on EVERY render,
+  // causing all consumers to re-render, triggering fetches, causing more
+  // state updates — the infinite loop. With useMemo, the object only
+  // changes when the actual state values change.
   const value = useMemo(() => ({
     currentUser, authLoading, forceReset,
     login, logout, resetPassword,
@@ -295,6 +322,7 @@ export function AppProvider({ children }) {
     taskList, fetchTasks, createTask, updateTask, deleteTask,
     completeTask, requestExtension, reviewExtension,
   }), [ // eslint-disable-line react-hooks/exhaustive-deps
+    // Only state values here — all the useCallback functions are stable
     currentUser, authLoading, forceReset,
     todayRecord, attendanceHistory, monthlySummary,
     allEmployeesToday, dashboardStats, adminOverview,
