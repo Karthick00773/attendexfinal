@@ -321,7 +321,6 @@
 }
 
 .chat-input-wrap:focus-within {
-  border-color: #7c3aed;
   box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
 }
 

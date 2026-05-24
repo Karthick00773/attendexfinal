@@ -61,12 +61,12 @@ function useScreenshotCapture(userRole) {
   const intervalRef = useRef(null);
 
   const getAuthToken = async () => {
-    const res = await fetch(`${BACKEND_URL}/imagekit/auth`, { headers: { Authorization: `Bearer ${localStorage.getItem('attendx_token')}` } });
+    const res = await fetch(`${BACKEND_URL}/api/imagekit/auth`, { headers: { Authorization: `Bearer ${localStorage.getItem('attendx_token')}` } });
     if (!res.ok) throw new Error('Failed to get ImageKit auth');
     return res.json();
   };
   const saveToDB = async (url) => {
-    await fetch(`${BACKEND_URL}/screenshots`, { method:'POST', headers:{ 'Content-Type':'application/json', Authorization:`Bearer ${localStorage.getItem('attendx_token')}` }, body: JSON.stringify({ url, taken_at: new Date().toISOString() }) });
+    await fetch(`${BACKEND_URL}/api/screenshots`, { method:'POST', headers:{ 'Content-Type':'application/json', Authorization:`Bearer ${localStorage.getItem('attendx_token')}` }, body: JSON.stringify({ url, taken_at: new Date().toISOString() }) });
   };
   const captureFrame = useCallback((stream) => new Promise((resolve, reject) => {
     const video = document.createElement('video');

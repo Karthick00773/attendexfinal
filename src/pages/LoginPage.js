@@ -72,32 +72,43 @@ export default function LoginPage() {
 
   if (forceReset) {
     return (
-      <div className="login-page">
-        <div className="login-container" style={{ justifyContent:'center', minHeight:420 }}>
-          <div className="login-right" style={{ width:'100%' }}>
-            <div className="login-card">
-              <div className="login-card-header">
-                <h3>Set New Password</h3>
-                <p>This is your first login. Please set a secure password to continue.</p>
-              </div>
-              <form onSubmit={handleResetPassword} className="login-form">
-                <div className="form-group">
-                  <label className="label">New Password</label>
-                  <input type="password" className="input" placeholder="Minimum 8 characters"
-                    value={newPassword} onChange={e => setNewPassword(e.target.value)} required minLength={8} />
-                </div>
-                <div className="form-group">
-                  <label className="label">Confirm Password</label>
-                  <input type="password" className="input" placeholder="Re-enter your password"
-                    value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required />
-                </div>
-                {error && <div className="login-error">{error}</div>}
-                <button type="submit" className="btn btn-primary btn-lg login-submit" disabled={loading}>
-                  {loading ? 'Saving...' : 'Set Password & Continue'}
-                </button>
-              </form>
-            </div>
+      <div className="reset-page">
+        <div className="reset-card">
+          <div className="reset-icon">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
           </div>
+          <h2 className="reset-title">Set new password</h2>
+          <p className="reset-subtitle">This is your first login. Please set a secure password to continue.</p>
+          <form onSubmit={handleResetPassword} className="reset-form">
+            <div className="form-group">
+              <label>New password</label>
+              <input
+                type="password"
+                placeholder="Minimum 8 characters"
+                value={newPassword}
+                onChange={e => setNewPassword(e.target.value)}
+                required
+                minLength={8}
+              />
+            </div>
+            <div className="form-group">
+              <label>Confirm password</label>
+              <input
+                type="password"
+                placeholder="Re-enter your password"
+                value={confirmPassword}
+                onChange={e => setConfirmPassword(e.target.value)}
+                required
+              />
+            </div>
+            {error && <div className="login-error">{error}</div>}
+            <button type="submit" className="reset-submit" disabled={loading}>
+              {loading ? 'Saving…' : 'Set password & continue'}
+            </button>
+          </form>
         </div>
       </div>
     );
@@ -136,7 +147,7 @@ export default function LoginPage() {
                 onChange={e => setPassword(e.target.value)}
                 required
                 autoComplete="current-password"
-                style={{ width:'100%', background:'#eee', border:'none', margin:'8px 0', fontSize:13, borderRadius:8, outline:'none' }}
+                style={{ width:'100%', background:'#eee', border:'none', margin:'8px 0', padding:'10px 38px 10px 15px', fontSize:13, borderRadius:8, outline:'none' }}
               />
               <button type="button" className="pw-toggle" onClick={() => setShowPw(s => !s)}>
                 {showPw
