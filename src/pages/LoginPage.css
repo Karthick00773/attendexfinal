@@ -248,12 +248,13 @@ form a {
 }
 
 .input-with-toggle {
-  padding-right: 44px !important;
+  padding: 16px 52px 16px 15px !important;
+  box-sizing: border-box;
 }
 
 .pw-toggle {
   position: absolute;
-  right: 12px;
+  right: 8px;
   top: 50%;
   transform: translateY(-50%);
   background: none;
@@ -262,13 +263,19 @@ form a {
   color: var(--muted);
   display: flex;
   align-items: center;
-  padding: 4px;
+  justify-content: center;
+  padding: 8px;
   margin-top: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
+  z-index: 2;
 }
 
 .pw-toggle:hover {
   color: var(--accent);
-  transform: translateY(-50%) scale(1);
+  background: rgba(0,0,0,0.05);
+  transform: translateY(-50%);
 }
 
 /* ── Error ── */
@@ -531,6 +538,10 @@ form a {
     padding: 14px 12px;
     font-size: 14px;
     border-radius: 8px;
+  }
+
+  .input-with-toggle {
+    padding-right: 52px !important;
   }
 
   form button {

@@ -136,7 +136,7 @@ export default function LoginPage() {
                 onChange={e => setPassword(e.target.value)}
                 required
                 autoComplete="current-password"
-                style={{ width:'100%', background:'#eee', border:'none', margin:'8px 0', padding:'10px 38px 10px 15px', fontSize:13, borderRadius:8, outline:'none' }}
+                style={{ width:'100%', background:'#eee', border:'none', margin:'8px 0', fontSize:13, borderRadius:8, outline:'none' }}
               />
               <button type="button" className="pw-toggle" onClick={() => setShowPw(s => !s)}>
                 {showPw
