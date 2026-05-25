@@ -251,6 +251,7 @@ form a {
   padding-right: 44px !important;
 }
 
+/* FIX 1: Eye button works on mobile touch */
 .pw-toggle {
   position: absolute;
   right: 12px;
@@ -262,13 +263,17 @@ form a {
   color: var(--muted);
   display: flex;
   align-items: center;
-  padding: 4px;
+  padding: 8px;                          /* larger tap target for fingers */
   margin-top: 0;
+  -webkit-tap-highlight-color: transparent; /* removes grey flash on iOS tap */
+  touch-action: manipulation;               /* prevents 300ms tap delay on mobile */
+  z-index: 10;
 }
 
-.pw-toggle:hover {
+.pw-toggle:hover,
+.pw-toggle:active {
   color: var(--accent);
-  transform: translateY(-50%) scale(1);
+  transform: translateY(-50%);  /* FIX: never change transform on hover — it was shifting the tap target */
 }
 
 /* ── Error ── */
@@ -428,7 +433,6 @@ form a {
     width: 100%;
     min-height: unset;
     border-radius: 20px;
-    /* Stack vertically: sign-in on top, toggle panel hidden */
   }
 
   /* Hide the sliding toggle panel on mobile */
@@ -589,7 +593,11 @@ form a {
   }
 }
 
-/* ── Force reset / Set new password screen ── */
+/* ═══════════════════════════════════════════════════════════════
+   FIX 2: Force reset / Set new password screen
+   The reset-form must override the global form { height:100%; align-items:center }
+   which was pushing content off-screen on mobile.
+   ═══════════════════════════════════════════════════════════════ */
 .reset-page {
   min-height: 100vh;
   display: flex;
@@ -611,6 +619,7 @@ form a {
   display: flex;
   flex-direction: column;
   align-items: stretch;
+  overflow: visible;
 }
 
 .reset-icon {
@@ -641,16 +650,19 @@ form a {
   line-height: 1.5;
 }
 
+/* FIX 2: Override global form styles that were hiding content */
 .reset-form {
-  display: flex;
-  flex-direction: column;
+  display: flex !important;
+  flex-direction: column !important;
   gap: 16px;
   width: 100%;
   background: #fff;
-  padding: 0;
-  height: auto;
+  padding: 0 !important;
+  height: auto !important;        /* global form { height: 100% } was the culprit */
+  min-height: unset !important;
   text-align: left;
-  align-items: stretch;
+  align-items: stretch !important;       /* override form { align-items: center } */
+  justify-content: flex-start !important;
 }
 
 .reset-form .form-group {
@@ -679,8 +691,8 @@ form a {
 }
 
 .reset-form input:focus {
-  border-color:rgb(63, 212, 175);
-  box-shadow: 0 0 0 3px rgb(63, 212, 175);
+  border-color: rgb(63, 212, 175);
+  box-shadow: 0 0 0 3px rgba(63, 212, 175, 0.2);
   background: #fff;
 }
 
