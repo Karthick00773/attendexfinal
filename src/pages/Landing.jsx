@@ -213,7 +213,6 @@ function BentoCard({ icon, title, desc, span = 2, big, bigText, children, style 
     ref.current.style.transition = "all .5s cubic-bezier(.2,1,.3,1)";
   };
 
-  const navigate = useNavigate();
 
   return (
     <div ref={ref} onMouseMove={handleMove} onMouseLeave={handleLeave}
