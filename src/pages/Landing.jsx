@@ -245,8 +245,13 @@ const styles = `
   .foot-logo{font-size:16px;font-weight:700;letter-spacing:-.03em;background:linear-gradient(135deg,var(--teal),var(--indigo));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
   .foot-copy{font-size:12px;color:rgba(255,255,255,.25);}
   .foot-links{display:flex;gap:24px;}
-  .foot-links a{font-size:12px;color:rgba(255,255,255,.3);text-decoration:none;transition:color .2s;}
-  .foot-links a:hover{color:var(--teal);}
+  .foot-links button{
+    font-size:12px;color:rgba(255,255,255,.3);
+    background:none;border:none;cursor:pointer;
+    padding:0;font-family:var(--font);
+    transition:color .2s;
+  }
+  .foot-links button:hover{color:var(--teal);}
 
   .floating-shape{position:absolute;border-radius:50%;background:radial-gradient(circle,var(--teal-glow),transparent);pointer-events:none;animation:floatAnim 8s ease-in-out infinite;}
   @keyframes floatAnim{0%,100%{transform:translateY(0) scale(1);}50%{transform:translateY(-20px) scale(1.05);}}
@@ -328,6 +333,7 @@ const TESTIMONIALS = [
   }
 ];
 
+// FIX 1: Added 'options' to the dependency array (was missing, causing exhaustive-deps warning)
 function useIntersection(ref, options = {}) {
   const [isVisible, setIsVisible] = useState(false);
   useEffect(() => {
@@ -338,7 +344,7 @@ function useIntersection(ref, options = {}) {
     }, { threshold: 0.15, ...options });
     observer.observe(el);
     return () => observer.disconnect();
-  }, [ref]);
+  }, [ref, options]); // <-- added options here
   return isVisible;
 }
 
@@ -737,14 +743,15 @@ export default function Landing() {
       </section>
 
       {/* FOOTER */}
+      {/* FIX 2, 3, 4: Replaced <a href="#"> with <button> elements to fix anchor-is-valid errors */}
       <footer className="nexus-footer">
         <div className="foot-logo">AttendX</div>
         <div className="foot-copy">© 2025 AttendX. All rights reserved.</div>
         <div className="foot-links">
-          <a href="#">Privacy</a>
-          <a href="#">Terms</a>
-          <a href="#">Status</a>
-          <a href="#">Support</a>
+          <button onClick={() => {}}>Privacy</button>
+          <button onClick={() => {}}>Terms</button>
+          <button onClick={() => {}}>Status</button>
+          <button onClick={() => {}}>Support</button>
         </div>
       </footer>
     </>
