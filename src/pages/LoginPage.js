@@ -1,187 +1,273 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
-import './LoginPage.css';
+import './HomePage.css';
 
-export default function LoginPage() {
-  const { login, resetPassword, forceReset } = useApp();
-
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [showPw, setShowPw] = useState(false);
-  const [isActive, setIsActive] = useState(false);
-  const [forgotEmail, setForgotEmail] = useState('');
-  const [forgotError, setForgotError] = useState('');
-  const [forgotSuccess, setForgotSuccess] = useState('');
-  const [forgotLoading, setForgotLoading] = useState(false);
-
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
-    try {
-      await login(email, password);
-    } catch (err) {
-      setError(err.message || 'Invalid email or password. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleResetPassword = async (e) => {
-    e.preventDefault();
-    if (newPassword.length < 8) { setError('Password must be at least 8 characters.'); return; }
-    if (newPassword !== confirmPassword) { setError('Passwords do not match.'); return; }
-    setLoading(true); setError('');
-    try {
-      await resetPassword(newPassword);
-    } catch (err) {
-      setError(err.message || 'Password reset failed. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleForgotPassword = async (e) => {
-    e.preventDefault();
-    setForgotError(''); setForgotSuccess(''); setForgotLoading(true);
-    try {
-      if (!forgotEmail) { setForgotError('Please enter your email address.'); return; }
-      setForgotSuccess('Password reset link sent to your email. Please check your inbox.');
-      setForgotEmail('');
-      setTimeout(() => setForgotSuccess(''), 5000);
-    } catch (err) {
-      setForgotError(err.message || 'Failed to send reset email. Please try again.');
-    } finally {
-      setForgotLoading(false);
-    }
-  };
-
-  if (forceReset) {
-    return (
-      <div className="reset-page">
-        <div className="reset-card">
-          <div className="reset-icon">
-            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-            </svg>
-          </div>
-          <h2 className="reset-title">Set new password</h2>
-          <p className="reset-subtitle">This is your first login. Please set a secure password to continue.</p>
-          <form onSubmit={handleResetPassword} className="reset-form">
-            <div className="form-group">
-              <label>New password</label>
-              <input
-                type="password"
-                placeholder="Minimum 8 characters"
-                value={newPassword}
-                onChange={e => setNewPassword(e.target.value)}
-                required
-                minLength={8}
-              />
-            </div>
-            <div className="form-group">
-              <label>Confirm password</label>
-              <input
-                type="password"
-                placeholder="Re-enter your password"
-                value={confirmPassword}
-                onChange={e => setConfirmPassword(e.target.value)}
-                required
-              />
-            </div>
-            {error && <div className="login-error">{error}</div>}
-            <button type="submit" className="reset-submit" disabled={loading}>
-              {loading ? 'Saving…' : 'Set password & continue'}
-            </button>
-          </form>
-        </div>
+function StatCard({ label, value, sub, color, icon }) {
+  return (
+    <div className="stat-card card" style={{ '--card-color': color }}>
+      <div className="stat-icon" style={{ background:`${color}18`, color }}>{icon}</div>
+      <div className="stat-body">
+        <span className="stat-value">{value}</span>
+        <span className="stat-label">{label}</span>
+        {sub && <span className="stat-sub">{sub}</span>}
       </div>
-    );
-  }
+    </div>
+  );
+}
+
+function AttendanceMiniCard({ emp }) {
+  const status = !emp.today ? 'absent'
+    : emp.today.check_out_time ? 'left'
+    : 'present';
+  const statusColor = { present:'badge-green', absent:'badge-red', left:'badge-blue' };
+  const statusLabel = { present:'● Present', absent:'● Absent', left:'● Checked Out' };
+  return (
+    <div className="mini-attend-card card">
+      <div className="avatar avatar-md">{emp.avatar_initials}</div>
+      <div className="mini-attend-info">
+        <span className="mini-attend-name">{emp.name}</span>
+        <span className="mini-attend-role">{emp.designation}</span>
+      </div>
+      <span className={`badge ${statusColor[status]}`}>{statusLabel[status]}</span>
+    </div>
+  );
+}
+
+export default function HomePage() {
+  const {
+    currentUser,
+    dashboardStats, fetchDashboard,
+    adminOverview, fetchAdminOverview,
+    notifList, unreadCount, fetchNotifications, markAllNotifRead,
+    allEmployeesToday, fetchAllEmployeesToday,
+  } = useApp();
+  const navigate = useNavigate();
+  const now      = new Date();
+  const timeStr  = now.toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit', hour12:true });
+  const dateStr  = now.toLocaleDateString('en-IN', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+
+  const isAdminOrCeo = ['admin','ceo'].includes(currentUser?.role);
+
+  // ✅ FIX: Use a ref to track the last userId we fetched for.
+  // This prevents the effect from re-running when function references
+  // (fetchDashboard, etc.) change identity, which was causing the loop.
+  const fetchedForRef = useRef(null);
+
+  useEffect(() => {
+    if (!currentUser?.id) return;
+    // ✅ Only fetch if we haven't already fetched for this user ID.
+    // This is the key guard that stops the render storm.
+    if (fetchedForRef.current === currentUser.id) return;
+    fetchedForRef.current = currentUser.id;
+
+    fetchDashboard();
+    fetchNotifications();
+
+    if (isAdminOrCeo) {
+      fetchAdminOverview();
+      fetchAllEmployeesToday();
+    }
+  // ✅ Only re-run when the actual user ID or role changes — NOT on every
+  // function reference change. The fetchX functions are stable (useCallback
+  // with [] deps) but listing them here was causing unnecessary re-runs
+  // when AppContext re-rendered for any reason.
+  }, [currentUser?.id, currentUser?.role]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const summary = dashboardStats?.month_summary || {};
+  const user    = dashboardStats?.user || currentUser;
+
+  const totalLeaves  = user?.paid_leaves_total  ?? currentUser?.total_leaves ?? 0;
+  const usedLeaves   = user?.paid_leaves_used   ?? currentUser?.used_leaves  ?? 0;
+  const leaveBalance = user?.paid_leave_balance ?? (totalLeaves - usedLeaves);
+
+  const pendingLeaves = isAdminOrCeo
+    ? (adminOverview?.pending_leaves || 0)
+    : (dashboardStats?.pending_leaves || 0);
+
+  const greet = () => {
+    const h = now.getHours();
+    if (h < 12) return 'Good Morning';
+    if (h < 17) return 'Good Afternoon';
+    return 'Good Evening';
+  };
 
   return (
-    <div className="login-page">
-      <div className={`login-container${isActive ? ' active' : ''}`}>
-
-        <div className="form-container sign-up">
-          <form onSubmit={handleForgotPassword}>
-            <h1>Forgot Password?</h1>
-            <p style={{ fontSize:13, color:'var(--muted)', marginBottom:16 }}>
-              Enter your email address and we'll send you a link to reset your password.
-            </p>
-            <input type="email" placeholder="Enter your email"
-              value={forgotEmail} onChange={e => setForgotEmail(e.target.value)} required />
-            {forgotSuccess && <div className="login-success" style={{ width:'100%', marginTop:6, background:'#dcfce7', borderColor:'#86efac', color:'#16a34a' }}>{forgotSuccess}</div>}
-            {forgotError && <div className="login-error" style={{ width:'100%', marginTop:6 }}>{forgotError}</div>}
-            <button type="submit" disabled={forgotLoading}>{forgotLoading ? 'Sending...' : 'Send Reset Link'}</button>
-          </form>
+    <div className="page animate-fadeup">
+      <div className="home-topbar">
+        <div>
+          <h1 className="home-greeting">{greet()}, {currentUser?.name?.split(' ')[0]} 👋</h1>
+          <p className="home-date">{dateStr}</p>
         </div>
-
-        <div className="form-container sign-in">
-          <form onSubmit={handleLogin}>
-            <h1>Sign In</h1>
-            <span>Use your email &amp; password to sign in</span>
-            <input
-              type="email"
-              placeholder="Email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              required
-              autoComplete="email"
-            />
-
-            {/* PASSWORD ROW — input and eye button are siblings, NOT nested */}
-            <div className="pw-row">
-              <input
-                type={showPw ? 'text' : 'password'}
-                placeholder="Password"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                required
-                autoComplete="current-password"
-                className="pw-input"
-              />
-              <button
-                type="button"
-                className="pw-eye"
-                tabIndex={-1}
-                aria-label={showPw ? 'Hide password' : 'Show password'}
-                onPointerDown={e => e.preventDefault()}
-                onClick={() => setShowPw(s => !s)}
-              >
-                {showPw
-                  ? <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
-                  : <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                }
-              </button>
-            </div>
-
-            <button type="button" className="link-btn" onClick={() => setIsActive(true)}>Forget Your Password?</button>
-            {error && <div className="login-error" style={{ width:'100%', marginTop:6 }}>{error}</div>}
-            <button type="submit" disabled={loading}>{loading ? 'Signing in…' : 'Sign In'}</button>
-          </form>
+        <div className="home-time-pill">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+          </svg>
+          {timeStr}
         </div>
+      </div>
 
-        <div className="toggle-container">
-          <div className="toggle">
-            <div className="toggle-panel toggle-left">
-              <h1>Remember Your Password?</h1>
-              <p>Go back to sign in with your credentials</p>
-              <button className="hidden" onClick={() => setIsActive(false)}>Sign In</button>
-            </div>
-            <div className="toggle-panel toggle-right">
-              <h1>Forgot Your Password?</h1>
-              <p>Get help resetting your password in just a few steps</p>
-              <button className="hidden" onClick={() => setIsActive(true)}>Forgot Password</button>
+      {/* Stats — employee only */}
+      {!isAdminOrCeo && (
+        <div className="grid-4 home-stats">
+          <StatCard
+            label="Normal Hours"
+            value={`${Number(summary.normal_hours || 0).toFixed(1)}h`}
+            sub={`of ${summary.monthly_target || 180}h this month`}
+            color="#7c3aed"
+            icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>}
+          />
+          <StatCard
+            label="Overtime"
+            value={`${Number(summary.overtime_hours || 0).toFixed(1)}h`}
+            sub="this month"
+            color="#f59e0b"
+            icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>}
+          />
+          <StatCard
+            label="Leave Balance"
+            value={leaveBalance}
+            sub={`of ${totalLeaves} paid days`}
+            color="#10b981"
+            icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>}
+          />
+          <StatCard
+            label="Pending Leaves"
+            value={pendingLeaves}
+            sub="awaiting approval"
+            color="#ef4444"
+            icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>}
+          />
+        </div>
+      )}
+
+      <div className="home-grid">
+        {/* Monthly progress — employee only */}
+        {!isAdminOrCeo && (
+          <div className="card home-progress-card">
+            <h3 className="card-title">Monthly Progress</h3>
+            <div className="progress-rows">
+              {[
+                { label:'Normal Hours',   value: summary.normal_hours   || 0, max:180, color:'var(--accent)' },
+                { label:'Overtime Hours', value: summary.overtime_hours || 0, max:40,  color:'var(--orange)' },
+                { label:'Total Hours',    value: summary.total_hours    || 0, max:220, color:'var(--green)'  },
+              ].map(item => (
+                <div key={item.label} className="progress-row">
+                  <div className="progress-row-header">
+                    <span>{item.label}</span>
+                    <span style={{ color:item.color, fontWeight:700 }}>{Number(item.value).toFixed(1)}h / {item.max}h</span>
+                  </div>
+                  <div className="progress-bar">
+                    <div className="progress-fill" style={{ width:`${Math.min((item.value/item.max)*100,100)}%`, background:item.color }} />
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
+        )}
+
+        {/* Admin/CEO today summary */}
+        {isAdminOrCeo && adminOverview && (
+          <div className="card home-progress-card">
+            <h3 className="card-title">Today's Team Overview</h3>
+            <div style={{ display:'flex', gap:16, flexWrap:'wrap' }}>
+              <div className="attend-hour-chip"><span>Total Staff</span><strong>{adminOverview.today?.total_employees}</strong></div>
+              <div className="attend-hour-chip" style={{ background:'var(--green-light)', color:'var(--green)' }}><span>Present</span><strong>{adminOverview.today?.present}</strong></div>
+              <div className="attend-hour-chip" style={{ background:'#fef2f2', color:'#ef4444' }}><span>Absent</span><strong>{adminOverview.today?.absent}</strong></div>
+              {adminOverview.pending_leaves > 0 && (
+                <div className="attend-hour-chip" style={{ background:'#fffbeb', color:'#d97706' }}><span>Pending Leaves</span><strong>{adminOverview.pending_leaves}</strong></div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Notifications */}
+        <div className="card home-notif-card">
+          <div className="card-head">
+            <h3 className="card-title">Notifications</h3>
+            {unreadCount > 0 && (
+              <button className="btn btn-ghost btn-sm" onClick={markAllNotifRead}>Mark all read</button>
+            )}
+          </div>
+          <div className="notif-list">
+            {notifList.length === 0 && <p className="empty-msg">No notifications</p>}
+            {notifList.slice(0, 5).map(n => (
+              <div key={n.id} className={`notif-item ${!n.is_read ? 'notif-unread' : ''}`}>
+                <div className="notif-dot-icon" style={{
+                  background: n.type === 'leave' || n.type === 'leave-update' ? 'var(--purple-100)' : n.type === 'task' ? '#fef3c7' : 'var(--green-light)',
+                  color:      n.type === 'leave' || n.type === 'leave-update' ? 'var(--accent)'    : n.type === 'task' ? '#d97706'  : 'var(--green)',
+                }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                  </svg>
+                </div>
+                <div className="notif-body">
+                  <p className="notif-text">{n.text}</p>
+                  <span className="notif-time">{new Date(n.created_at).toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit', hour12:true })}</span>
+                </div>
+                {!n.is_read && <div className="notif-unread-dot" />}
+              </div>
+            ))}
+          </div>
+          {notifList.length > 0 && (
+            <button className="btn btn-outline btn-sm" style={{ width:'100%', marginTop:12, justifyContent:'center' }} onClick={() => navigate('/leaves')}>
+              View all leave requests
+            </button>
+          )}
         </div>
 
+        {/* Team attendance — admin/ceo only */}
+        {isAdminOrCeo && (
+          <div className="card home-team-card">
+            <div className="card-head">
+              <h3 className="card-title">Today's Team Status</h3>
+              <button className="btn btn-ghost btn-sm" onClick={() => navigate('/attendance/manage')}>View All</button>
+            </div>
+            <div className="team-attend-list">
+              {allEmployeesToday.slice(0, 5).map(emp => (
+                <AttendanceMiniCard key={emp.id} emp={emp} />
+              ))}
+              {allEmployeesToday.length === 0 && <p className="empty-msg">No employee data</p>}
+            </div>
+          </div>
+        )}
+
+        {/* Quick actions */}
+        <div className="card home-quick-card">
+          <h3 className="card-title">Quick Actions</h3>
+          <div className="quick-actions">
+            <button className="quick-action-btn" onClick={() => navigate(currentUser?.role === 'employee' ? '/attendance' : '/attendance/manage')}>
+              <span className="quick-action-icon" style={{ background:'var(--lavender)', color:'var(--accent)' }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              </span>
+              <span>Attendance</span>
+            </button>
+            <button className="quick-action-btn" onClick={() => navigate('/tasks')}>
+              <span className="quick-action-icon" style={{ background:'#fef3c7', color:'#d97706' }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+              </span>
+              <span>Tasks</span>
+            </button>
+            <button className="quick-action-btn" onClick={() => navigate('/chat')}>
+              <span className="quick-action-icon" style={{ background:'var(--blue-light)', color:'var(--blue)' }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+              </span>
+              <span>Group Chat</span>
+            </button>
+            <button className="quick-action-btn" onClick={() => navigate('/leaves')}>
+              <span className="quick-action-icon" style={{ background:'var(--green-light)', color:'var(--green)' }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              </span>
+              <span>Leave Request</span>
+            </button>
+            <button className="quick-action-btn" onClick={() => navigate('/profile')}>
+              <span className="quick-action-icon" style={{ background:'var(--orange-light)', color:'var(--orange)' }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              </span>
+              <span>Profile</span>
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
