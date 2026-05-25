@@ -10,6 +10,7 @@ import LeavePage from './pages/LeavePage';
 import AdminAttendancePage from './pages/AdminAttendancePage';
 import TasksPage from './pages/TasksPage';
 import Sidebar from './components/Sidebar';
+import Landing from './pages/Landing';
 
 const CAPTURE_INTERVAL_MS = 5 * 60 * 1000;
 const STORAGE_KEY = 'screenshot_permission';
@@ -131,15 +132,10 @@ function LoadingScreen() {
 
 function AdminGuard({ children }) {
   const { currentUser } = useApp();
-  if (!currentUser || !['admin','ceo'].includes(currentUser.role)) return <Navigate to="/" replace />;
+  if (!currentUser || !['admin','ceo'].includes(currentUser.role)) return <Navigate to="/home" replace />;
   return children;
 }
 
-// ✅ FIX: Removed ForceResetGuard from ProtectedLayout entirely.
-// The old ForceResetGuard redirected to /login when forceReset=true,
-// but /login redirects back to / when currentUser exists → infinite loop.
-// Now forceReset is handled in LoginPage itself (it already shows the
-// reset form when forceReset=true), so no redirect guard is needed here.
 function ProtectedLayout({ children }) {
   const { currentUser, authLoading } = useApp();
   if (authLoading) return <LoadingScreen />;
@@ -164,22 +160,30 @@ function AppRoutes() {
     <>
       {showPopup && currentUser && <ScreenshotPermissionPopup onAllow={handleAllow} onDeny={handleDeny} />}
       <Routes>
-        {/* ✅ FIX: /login shows LoginPage when forceReset OR no user.
-            LoginPage internally renders the reset form when forceReset=true.
-            This breaks the /login ↔ / redirect loop. */}
+        {/* Public landing page — no login required.
+            If already logged in, skip straight to /home */}
+        <Route path="/" element={
+          currentUser ? <Navigate to="/home" replace /> : <Landing />
+        } />
+
+        {/* Login — if logged in (and not force-reset), skip to /home */}
         <Route path="/login" element={
           currentUser && !forceReset
-            ? <Navigate to="/" replace />
+            ? <Navigate to="/home" replace />
             : <LoginPage />
         } />
-        <Route path="/" element={<ProtectedLayout><HomePage /></ProtectedLayout>} />
+
+        {/* Protected routes */}
+        <Route path="/home"       element={<ProtectedLayout><HomePage /></ProtectedLayout>} />
         <Route path="/attendance" element={<ProtectedLayout><AttendancePage /></ProtectedLayout>} />
         <Route path="/attendance/manage" element={<ProtectedLayout><AdminGuard><AdminAttendancePage /></AdminGuard></ProtectedLayout>} />
-        <Route path="/tasks" element={<ProtectedLayout><TasksPage /></ProtectedLayout>} />
-        <Route path="/chat" element={<ProtectedLayout><GroupChatPage /></ProtectedLayout>} />
-        <Route path="/profile" element={<ProtectedLayout><ProfilePage /></ProtectedLayout>} />
-        <Route path="/leaves" element={<ProtectedLayout><LeavePage /></ProtectedLayout>} />
-        <Route path="*" element={currentUser ? <Navigate to="/" replace /> : <Navigate to="/login" replace />} />
+        <Route path="/tasks"      element={<ProtectedLayout><TasksPage /></ProtectedLayout>} />
+        <Route path="/chat"       element={<ProtectedLayout><GroupChatPage /></ProtectedLayout>} />
+        <Route path="/profile"    element={<ProtectedLayout><ProfilePage /></ProtectedLayout>} />
+        <Route path="/leaves"     element={<ProtectedLayout><LeavePage /></ProtectedLayout>} />
+
+        {/* Catch-all: logged in → /home, logged out → landing */}
+        <Route path="*" element={currentUser ? <Navigate to="/home" replace /> : <Navigate to="/" replace />} />
       </Routes>
     </>
   );
