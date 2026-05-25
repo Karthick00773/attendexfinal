@@ -83,13 +83,14 @@ form h1 {
 
 form input {
   background: #eee;
-  padding: 16px 15px;
+  padding: 12px 15px;
   margin: 8px 0;
   width: 100%;
   border: none;
   outline: none;
   border-radius: 8px;
   font-size: 13px;
+  box-sizing: border-box;
 }
 
 form button {
@@ -241,34 +242,57 @@ form a {
   color: var(--indigo);
 }
 
-/* ── Input with password toggle ── */
-.input-icon-wrap {
-  position: relative;
-  width: 100%;
-}
-
-.input-with-toggle {
-  padding-right: 44px !important;
-}
-
-.pw-toggle {
-  position: absolute;
-  right: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: var(--muted);
+/* ═══════════════════════════════════════════════════════════════
+   PASSWORD ROW FIX
+   The eye button sits BESIDE the input, not inside/on top of it.
+   This means touching the input always hits the input — never the button.
+   ═══════════════════════════════════════════════════════════════ */
+.pw-row {
   display: flex;
   align-items: center;
-  padding: 4px;
-  margin-top: 0;
+  width: 100%;
+  gap: 6px;
+  margin: 8px 0;
 }
 
-.pw-toggle:hover {
-  color: var(--accent);
-  transform: translateY(-50%) scale(1);
+.pw-input {
+  flex: 1;
+  background: #eee;
+  border: none;
+  outline: none;
+  border-radius: 8px;
+  padding: 12px 15px;
+  font-size: 13px;
+  margin: 0 !important;   /* override form input margin */
+  min-width: 0;           /* flex shrink fix */
+  box-sizing: border-box;
+}
+
+.pw-eye {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  background: #eee;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #777;
+  margin: 0 !important;
+  padding: 0 !important;
+  /* Mobile touch fixes */
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transition: background 0.2s, color 0.2s;
+}
+
+.pw-eye:hover,
+.pw-eye:active {
+  background: #e0e0e0;
+  color: #333;
+  transform: none !important; /* never move — no accidental hover shift */
 }
 
 /* ── Error ── */
@@ -299,27 +323,12 @@ form a {
   color: #92400e;
 }
 
-.login-reset-banner svg {
-  flex-shrink: 0;
-  margin-top: 2px;
-}
-
-.login-reset-banner strong {
-  display: block;
-  margin-bottom: 4px;
-}
-
-.login-reset-banner p {
-  font-size: 0.82rem;
-  margin: 0;
-}
+.login-reset-banner svg { flex-shrink: 0; margin-top: 2px; }
+.login-reset-banner strong { display: block; margin-bottom: 4px; }
+.login-reset-banner p { font-size: 0.82rem; margin: 0; }
 
 /* ── Submit ── */
-.login-submit {
-  width: 100%;
-  justify-content: center;
-  margin-top: 4px;
-}
+.login-submit { width: 100%; justify-content: center; margin-top: 4px; }
 
 /* ── Hint ── */
 .login-hint {
@@ -341,10 +350,7 @@ form a {
   text-decoration: underline;
   margin: 10px 0;
 }
-
-.link-btn:hover {
-  color: #333;
-}
+.link-btn:hover { color: #333; }
 
 /* ── Demo accounts ── */
 .demo-accounts-label {
@@ -356,11 +362,7 @@ form a {
   letter-spacing: 0.04em;
 }
 
-.demo-accounts-grid {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
+.demo-accounts-grid { display: flex; gap: 8px; flex-wrap: wrap; }
 
 .demo-account-btn {
   flex: 1;
@@ -381,39 +383,19 @@ form a {
   border-color: var(--accent);
   background: var(--lavender);
   transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
 }
 
 .demo-avatar {
-  width: 30px;
-  height: 30px;
+  width: 30px; height: 30px;
   border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.7rem;
-  font-weight: 700;
-  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.7rem; font-weight: 700; flex-shrink: 0;
 }
 
-.demo-info {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-}
-
-.demo-role {
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: var(--text);
-  line-height: 1.2;
-}
-
-.demo-desc {
-  font-size: 0.68rem;
-  color: var(--muted);
-  line-height: 1.2;
-}
+.demo-info { display: flex; flex-direction: column; gap: 1px; }
+.demo-role { font-size: 0.78rem; font-weight: 600; color: var(--text); line-height: 1.2; }
+.demo-desc { font-size: 0.68rem; color: var(--muted); line-height: 1.2; }
 
 /* ═══════════════════════════════════════════════════════════════
    RESPONSIVE — Tablet (≤ 768px)
@@ -428,15 +410,10 @@ form a {
     width: 100%;
     min-height: unset;
     border-radius: 20px;
-    /* Stack vertically: sign-in on top, toggle panel hidden */
   }
 
-  /* Hide the sliding toggle panel on mobile */
-  .toggle-container {
-    display: none;
-  }
+  .toggle-container { display: none; }
 
-  /* Both form panels take full width */
   .sign-in,
   .sign-up {
     position: relative;
@@ -447,10 +424,7 @@ form a {
     transform: none !important;
   }
 
-  /* Only show active panel */
-  .sign-up {
-    display: none;
-  }
+  .sign-up { display: none; }
 
   .login-container.active .sign-in {
     display: none;
@@ -469,11 +443,8 @@ form a {
     min-height: unset;
   }
 
-  form h1 {
-    font-size: 1.7rem;
-  }
+  form h1 { font-size: 1.7rem; }
 
-  /* Show a simple text toggle instead of the sliding panel */
   .mobile-toggle-hint {
     display: block;
     text-align: center;
@@ -494,14 +465,8 @@ form a {
     text-decoration: underline;
   }
 
-  .demo-accounts-grid {
-    flex-direction: column;
-  }
-
-  .demo-account-btn {
-    min-width: unset;
-    width: 100%;
-  }
+  .demo-accounts-grid { flex-direction: column; }
+  .demo-account-btn { min-width: unset; width: 100%; }
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -515,17 +480,11 @@ form a {
 
   .login-container {
     border-radius: 16px;
-    box-shadow: 0 3px 20px rgba(0, 0, 0, 0.08);
+    box-shadow: 0 3px 20px rgba(0,0,0,0.08);
   }
 
-  form {
-    padding: 28px 20px;
-  }
-
-  form h1 {
-    font-size: 1.5rem;
-    margin-bottom: 6px;
-  }
+  form { padding: 28px 20px; }
+  form h1 { font-size: 1.5rem; margin-bottom: 6px; }
 
   form input {
     padding: 14px 12px;
@@ -540,51 +499,156 @@ form a {
     margin-top: 12px;
   }
 
-  .login-error {
-    font-size: 0.82rem;
-    padding: 10px 12px;
+  .pw-input {
+    padding: 14px 12px;
+    font-size: 14px;
   }
 
-  .login-reset-banner {
-    padding: 12px;
-    font-size: 0.8rem;
+  .pw-eye {
+    width: 46px;
+    height: 46px;
   }
 
-  .demo-account-btn {
-    padding: 10px 12px;
-  }
-
-  .demo-role {
-    font-size: 0.82rem;
-  }
-
-  .demo-desc {
-    font-size: 0.72rem;
-  }
-
-  .toggle-panel h1 {
-    font-size: 1.6rem;
-  }
+  .login-error { font-size: 0.82rem; padding: 10px 12px; }
+  .login-reset-banner { padding: 12px; font-size: 0.8rem; }
+  .demo-account-btn { padding: 10px 12px; }
+  .demo-role { font-size: 0.82rem; }
+  .demo-desc { font-size: 0.72rem; }
+  .toggle-panel h1 { font-size: 1.6rem; }
 }
 
 /* ═══════════════════════════════════════════════════════════════
    RESPONSIVE — Very small phones (≤ 360px)
    ═══════════════════════════════════════════════════════════════ */
 @media (max-width: 360px) {
-  form {
-    padding: 24px 16px;
-  }
+  form { padding: 24px 16px; }
+  form h1 { font-size: 1.35rem; }
+  form input { padding: 12px 10px; }
+  .login-social-icons button { width: 36px; height: 36px; }
+}
 
-  form h1 {
-    font-size: 1.35rem;
-  }
+/* ═══════════════════════════════════════════════════════════════
+   RESET PASSWORD SCREEN
+   ═══════════════════════════════════════════════════════════════ */
+.reset-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-gradient);
+  background-attachment: fixed;
+  font-family: var(--font);
+  padding: 20px 16px;
+}
 
-  form input {
-    padding: 12px 10px;
-  }
+.reset-card {
+  width: 100%;
+  max-width: 420px;
+  background: #fff;
+  border-radius: 24px;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.10);
+  padding: 40px 36px 36px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  overflow: visible;
+}
 
-  .login-social-icons button {
-    width: 36px;
-    height: 36px;
+.reset-icon {
+  width: 56px; height: 56px;
+  border-radius: 16px;
+  background: #f0ecff;
+  color: rgb(63, 212, 175);
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 20px;
+}
+
+.reset-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #111827;
+  text-align: center;
+  margin: 0 0 6px;
+}
+
+.reset-subtitle {
+  font-size: 13px;
+  color: #6b7280;
+  text-align: center;
+  margin: 0 0 28px;
+  line-height: 1.5;
+}
+
+/* Override ALL global form styles for reset */
+.reset-form {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 16px;
+  width: 100%;
+  background: #fff;
+  padding: 0 !important;
+  height: auto !important;
+  min-height: unset !important;
+  text-align: left;
+  align-items: stretch !important;
+  justify-content: flex-start !important;
+}
+
+.reset-form .form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.reset-form label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.reset-form input {
+  background: #f3f4f6 !important;
+  border: 1.5px solid #e5e7eb !important;
+  border-radius: 10px;
+  padding: 12px 14px !important;
+  font-size: 14px;
+  color: #111827;
+  outline: none;
+  width: 100%;
+  margin: 0 !important;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.reset-form input:focus {
+  border-color: rgb(63, 212, 175) !important;
+  box-shadow: 0 0 0 3px rgba(63, 212, 175, 0.2);
+  background: #fff !important;
+}
+
+.reset-form .login-error { margin: 0; }
+
+.reset-submit {
+  width: 100%;
+  padding: 13px;
+  background: linear-gradient(rgb(63, 212, 175), rgb(56, 180, 150));
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 4px !important;
+  transition: opacity 0.2s, transform 0.1s;
+}
+
+.reset-submit:hover:not(:disabled) { opacity: 0.92; }
+.reset-submit:active:not(:disabled) { transform: scale(0.98); }
+.reset-submit:disabled { opacity: 0.6; cursor: not-allowed; }
+
+@media (max-width: 480px) {
+  .reset-card {
+    padding: 32px 20px 28px;
+    border-radius: 18px;
   }
+  .reset-title { font-size: 1.3rem; }
 }
