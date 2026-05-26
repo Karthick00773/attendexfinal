@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import './LoginPage.css';
 
@@ -18,15 +18,80 @@ export default function LoginPage() {
   const [forgotSuccess, setForgotSuccess] = useState('');
   const [forgotLoading, setForgotLoading] = useState(false);
 
+  const overlayRef = useRef(null);
+  const cutLineRef = useRef(null);
+  const riderRef   = useRef(null);
+  const halfTopRef = useRef(null);
+  const halfBotRef = useRef(null);
+
+  const runScissors = (loginFn) => {
+    const ov   = overlayRef.current;
+    const cut  = cutLineRef.current;
+    const icon = riderRef.current;
+    if (!ov || !cut || !icon) { loginFn(); return; }
+
+    // Hard reset — no transitions yet
+    ov.classList.remove('split', 'done');
+    ov.style.transition   = 'none';
+    icon.style.transition = 'none';
+    cut.style.transition  = 'none';
+    icon.style.left       = '-70px';
+    icon.style.opacity    = '0';
+    cut.style.opacity     = '0';
+
+    // Show overlay invisible, reflow, then make visible
+    ov.style.display = 'block';
+    ov.style.opacity = '0';
+    void ov.offsetWidth;
+    ov.style.opacity = '1';
+
+    // 1 — cut line fades in
+    setTimeout(() => {
+      cut.style.transition = 'opacity 0.2s ease';
+      cut.style.opacity    = '1';
+    }, 120);
+
+    // 2 — scissors slide across
+    setTimeout(() => {
+      icon.style.opacity = '1';
+      void icon.offsetWidth;
+      icon.style.transition = 'left 0.85s cubic-bezier(0.6,0,0.4,1)';
+      icon.style.left = (window.innerWidth + 80) + 'px';
+    }, 220);
+
+    // 3 — page splits open
+    setTimeout(() => {
+      cut.style.transition = 'opacity 0.1s ease';
+      cut.style.opacity    = '0';
+      ov.classList.add('split');
+    }, 700);
+
+    // 4 — overlay fades out
+    setTimeout(() => {
+      ov.classList.add('done');
+    }, 1650);
+
+    // 5 — navigate + cleanup
+    setTimeout(() => {
+      loginFn();
+      ov.style.display = 'none';
+      ov.style.opacity = '0';
+      ov.classList.remove('split', 'done');
+    }, 2100);
+  };
+
   const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
     try {
-      await login(email, password);
+      await new Promise((resolve, reject) => {
+        login(email, password)
+          .then((result) => { runScissors(() => resolve(result)); })
+          .catch(reject);
+      });
     } catch (err) {
       setError(err.message || 'Invalid email or password. Please try again.');
-    } finally {
       setLoading(false);
     }
   };
@@ -75,24 +140,13 @@ export default function LoginPage() {
           <form onSubmit={handleResetPassword} className="reset-form">
             <div className="form-group">
               <label>New password</label>
-              <input
-                type="password"
-                placeholder="Minimum 8 characters"
-                value={newPassword}
-                onChange={e => setNewPassword(e.target.value)}
-                required
-                minLength={8}
-              />
+              <input type="password" placeholder="Minimum 8 characters"
+                value={newPassword} onChange={e => setNewPassword(e.target.value)} required minLength={8}/>
             </div>
             <div className="form-group">
               <label>Confirm password</label>
-              <input
-                type="password"
-                placeholder="Re-enter your password"
-                value={confirmPassword}
-                onChange={e => setConfirmPassword(e.target.value)}
-                required
-              />
+              <input type="password" placeholder="Re-enter your password"
+                value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required/>
             </div>
             {error && <div className="login-error">{error}</div>}
             <button type="submit" className="reset-submit" disabled={loading}>
@@ -106,6 +160,15 @@ export default function LoginPage() {
 
   return (
     <div className="login-page">
+
+      {/* ── Scissors overlay — NO inline style, CSS owns display:none ── */}
+      <div id="scissors-overlay" ref={overlayRef}>
+        <div id="half-top"    ref={halfTopRef}><div className="fill" /></div>
+        <div id="half-bottom" ref={halfBotRef}><div className="fill" /></div>
+        <div id="cut-line"    ref={cutLineRef} />
+        <div id="scissors-rider" ref={riderRef}>✂️</div>
+      </div>
+
       <div className={`login-container${isActive ? ' active' : ''}`}>
 
         <div className="form-container sign-up">
@@ -137,9 +200,8 @@ export default function LoginPage() {
                 onChange={e => setPassword(e.target.value)}
                 required
                 autoComplete="current-password"
-                style={{ width:'100%', background:'#eee', border:'none', margin:'8px 0', padding:'10px 44px 10px 15px', fontSize:13, borderRadius:8, outline:'none' }}
+                style={{ width:'100%', background:'#eef5fb', border:'none', margin:'8px 0', padding:'10px 44px 10px 15px', fontSize:13, borderRadius:8, outline:'none', color:'#2a5a8c' }}
               />
-              {/* FIX: onMouseDown preventDefault stops input losing focus on tap */}
               <button
                 type="button"
                 className="pw-toggle"
