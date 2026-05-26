@@ -91,7 +91,7 @@ export default function LoginPage() {
         sc.style.transition = 'opacity 0.15s ease';
         sc.style.opacity    = '1';
         requestAnimationFrame(() => {
-          sc.style.transition = 'left 1.70s cubic-bezier(0.55,0,0.35,1), opacity 0.15s ease';
+          sc.style.transition = 'left 1.50s cubic-bezier(0.55,0,0.35,1), opacity 0.15s ease';
           sc.style.left = (window.innerWidth + 100) + 'px';
         });
       }, 200);
