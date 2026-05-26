@@ -549,3 +549,69 @@
   .lf-card { padding: 1.4rem 1rem 1.2rem; }
   .lf-heading { font-size: 18px; }
 }
+
+/* ══════════════════════════════════
+   SCISSORS OVERLAY
+   position:fixed escapes .lf-page overflow:hidden
+   so the scissor can travel the full viewport width
+══════════════════════════════════ */
+.sc-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  flex-direction: column;
+  pointer-events: none;
+  /* display toggled by JS — starts display:none */
+}
+
+.sc-top,
+.sc-bot {
+  flex: 1;
+  background: #1a3d61;
+  position: relative;
+  will-change: transform;
+}
+
+/* glowing seam lines */
+.sc-seam {
+  position: absolute;
+  left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #3f79af, #5a9fd4, #3f79af);
+  box-shadow: 0 0 10px rgba(91,163,217,.7);
+}
+.sc-seam-bot { bottom: 0; }
+.sc-seam-top { top: 0; }
+
+/* ── scissor rider ── */
+.sc-rider {
+  position: fixed;
+  top: 50%;
+  /* left set by JS */
+  transform: translateY(-50%);
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  pointer-events: none;
+  filter: drop-shadow(0 0 6px rgba(63,121,175,.5));
+}
+
+/* blade SVGs — pivot point is the circle (left side) */
+.sc-blade-top {
+  transform-origin: 12px 9px;   /* circle centre in SVG coords */
+  transform: rotate(0deg);
+  transition: transform 0.18s ease-in-out;
+  display: block;
+}
+.sc-blade-bot {
+  transform-origin: 12px 9px;
+  transform: rotate(0deg);
+  transition: transform 0.18s ease-in-out;
+  display: block;
+}
+
+/* when .sc-open is added the blades spread apart */
+.sc-rider.sc-open .sc-blade-top { transform: rotate(-22deg); }
+.sc-rider.sc-open .sc-blade-bot { transform: rotate( 22deg); }
