@@ -380,25 +380,7 @@
 /* ══════════════════════════════════
    FOOTER & STATS
 ══════════════════════════════════ */
-.lf-footer {
-  text-align: center;
-  font-size: 11px;
-  color: #8aabca;
-  margin-top: 1rem;
-  letter-spacing: .4px;
-  font-family: 'Inter', system-ui, sans-serif;
-}
-.lf-footer button {
-  color: #3f79af;
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-family: 'Inter', system-ui, sans-serif;
-  font-size: 11px;
-  padding: 0;
-  margin: 0;
-  text-decoration: underline;
-}
+
 .lf-stats {
   display: flex;
   gap: 1.6rem;

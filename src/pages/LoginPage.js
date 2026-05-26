@@ -283,10 +283,7 @@ export default function LoginPage() {
                   </div>
                 </form>
 
-                <p className="lf-footer">
-                  New employee?{' '}
-                  <button type="button">Contact your HR admin</button>
-                </p>
+                
               </>
             ) : (
               /* ── forgot password form ── */
@@ -337,8 +334,8 @@ export default function LoginPage() {
 
         {/* ── stats bar ── */}
         <div className="lf-stats">
-          <div><div className="lf-sn">500+</div><div className="lf-sl">Companies</div></div>
-          <div><div className="lf-sn">120K</div><div className="lf-sl">Employees</div></div>
+          <div><div className="lf-sn">50+</div><div className="lf-sl">Companies</div></div>
+          <div><div className="lf-sn">100</div><div className="lf-sl">Employees</div></div>
           <div><div className="lf-sn">99.9%</div><div className="lf-sl">Uptime</div></div>
           <div><div className="lf-sn">98%</div><div className="lf-sl">Accuracy</div></div>
         </div>
