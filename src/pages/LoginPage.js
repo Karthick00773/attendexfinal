@@ -21,73 +21,63 @@ export default function LoginPage() {
   const overlayRef = useRef(null);
   const cutLineRef = useRef(null);
   const riderRef   = useRef(null);
-  const halfTopRef = useRef(null);
-  const halfBotRef = useRef(null);
 
-  const runScissors = (loginFn) => {
+  const runScissors = (onDone) => {
     const ov   = overlayRef.current;
     const cut  = cutLineRef.current;
     const icon = riderRef.current;
-    if (!ov || !cut || !icon) { loginFn(); return; }
 
-    // ── 1. Hard reset (no transitions yet) ──────────────────────
-    ov.style.transition   = 'none';
-    cut.style.transition  = 'none';
-    icon.style.transition = 'none';
-    ov.classList.remove('split', 'done');
-    icon.style.left    = '-70px';
-    icon.style.opacity = '0';
-    cut.style.opacity  = '0';
-    ov.style.opacity   = '0';
+    // Safety: if refs missing just navigate
+    if (!ov || !cut || !icon) { onDone(); return; }
 
-    // ── 2. Mount overlay, then double-rAF so browser paints ─────
-    ov.style.display = 'block';
+    // ── RESET everything ────────────────────────────────────────
+    ov.style.cssText   = 'display:block; opacity:0;';
+    cut.style.cssText  = 'opacity:0; transition:none;';
+    icon.style.cssText = 'left:-70px; opacity:0; transition:none;';
+    ov.classList.remove('sc-split');
 
+    // ── Double rAF so browser paints the block+opacity:0 first ──
     requestAnimationFrame(() => requestAnimationFrame(() => {
 
-      // Fade overlay in
+      // 1 — Overlay fades in
       ov.style.transition = 'opacity 0.15s ease';
       ov.style.opacity    = '1';
 
-      // ── 3. Cut line fades in ──────────────────────────────────
+      // 2 — Dashed cut-line appears
       setTimeout(() => {
         cut.style.transition = 'opacity 0.2s ease';
         cut.style.opacity    = '1';
-      }, 120);
+      }, 150);
 
-      // ── 4. Scissors slide across ──────────────────────────────
+      // 3 — Scissors appear then slide across
       setTimeout(() => {
-        // First make it visible with no left-transition
-        icon.style.transition = 'opacity 0.1s ease';
         icon.style.opacity    = '1';
-
-        // Then on next frame start the slide
+        icon.style.transition = 'none';
         requestAnimationFrame(() => {
           icon.style.transition = 'left 0.85s cubic-bezier(0.6,0,0.4,1)';
           icon.style.left = (window.innerWidth + 80) + 'px';
         });
-      }, 220);
+      }, 280);
 
-      // ── 5. Snip! Page splits open ─────────────────────────────
+      // 4 — SNIP: cut-line fades, page splits open
       setTimeout(() => {
-        cut.style.transition = 'opacity 0.1s ease';
+        cut.style.transition = 'opacity 0.08s';
         cut.style.opacity    = '0';
-        ov.classList.add('split');
-      }, 700);
+        ov.classList.add('sc-split');
+      }, 750);
 
-      // ── 6. Overlay fades out ──────────────────────────────────
+      // 5 — Overlay fades out
       setTimeout(() => {
-        ov.style.transition = 'opacity 0.45s ease';
+        ov.style.transition = 'opacity 0.4s ease';
         ov.style.opacity    = '0';
-      }, 1500);
+      }, 1550);
 
-      // ── 7. Navigate + full cleanup ────────────────────────────
+      // 6 — Navigate + full cleanup
       setTimeout(() => {
-        loginFn();
-        ov.style.display    = 'none';
-        ov.style.transition = 'none';
-        ov.classList.remove('split', 'done');
-      }, 1980);
+        onDone();
+        ov.style.cssText = 'display:none; opacity:0;';
+        ov.classList.remove('sc-split');
+      }, 2000);
 
     }));
   };
@@ -97,8 +87,8 @@ export default function LoginPage() {
     setError('');
     setLoading(true);
     try {
-      await login(email, password);   // credentials validated first
-      runScissors(() => {});          // animation plays, context handles navigation
+      await login(email, password);        // validate first
+      runScissors(() => {});               // then animate (AppContext handles redirect)
     } catch (err) {
       setError(err.message || 'Invalid email or password. Please try again.');
       setLoading(false);
@@ -168,14 +158,19 @@ export default function LoginPage() {
   }
 
   return (
+    // ── login-page is the root ──────────────────────────────────
     <div className="login-page">
 
-      {/* ── Scissors overlay ── */}
-      <div id="scissors-overlay" ref={overlayRef}>
-        <div id="half-top"    ref={halfTopRef}><div className="fill" /></div>
-        <div id="half-bottom" ref={halfBotRef}><div className="fill" /></div>
-        <div id="cut-line"    ref={cutLineRef} />
-        <div id="scissors-rider" ref={riderRef}>✂️</div>
+      {/*
+        ✅ OVERLAY IS HERE — direct child of .login-page
+           NOT inside .login-container (which has overflow:hidden)
+           position:fixed so it covers the full screen
+      */}
+      <div className="sc-overlay" ref={overlayRef}>
+        <div className="sc-half sc-top"><div className="sc-fill" /></div>
+        <div className="sc-half sc-bot"><div className="sc-fill" /></div>
+        <div className="sc-cutline" ref={cutLineRef} />
+        <div className="sc-rider"   ref={riderRef}>✂️</div>
       </div>
 
       <div className={`login-container${isActive ? ' active' : ''}`}>
@@ -188,7 +183,11 @@ export default function LoginPage() {
             </p>
             <input type="email" placeholder="Enter your email"
               value={forgotEmail} onChange={e => setForgotEmail(e.target.value)} required />
-            {forgotSuccess && <div className="login-success" style={{ width:'100%', marginTop:6, background:'#dcfce7', borderColor:'#86efac', color:'#16a34a' }}>{forgotSuccess}</div>}
+            {forgotSuccess && (
+              <div className="login-success" style={{ width:'100%', marginTop:6, background:'#dcfce7', borderColor:'#86efac', color:'#16a34a' }}>
+                {forgotSuccess}
+              </div>
+            )}
             {forgotError && <div className="login-error" style={{ width:'100%', marginTop:6 }}>{forgotError}</div>}
             <button type="submit" disabled={forgotLoading}>{forgotLoading ? 'Sending...' : 'Send Reset Link'}</button>
           </form>
