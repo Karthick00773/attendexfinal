@@ -28,46 +28,77 @@ export default function LoginPage() {
   /* ─────────────────────────────────────────
      Scissors animation — runs AFTER login()
      resolves successfully, then calls loginFn
-     which triggers your router navigation.
+     which triggers router navigation.
   ───────────────────────────────────────── */
   const runScissors = (loginFn) => {
     const ov   = overlayRef.current;
     const cut  = cutLineRef.current;
     const icon = riderRef.current;
-    if (!ov || !cut || !icon) { loginFn(); return; }
+    const top  = halfTopRef.current;
+    const bot  = halfBotRef.current;
 
-    // Reset any previous run
+    // Safety: if any ref is missing, skip animation and navigate directly
+    if (!ov || !cut || !icon || !top || !bot) {
+      loginFn();
+      return;
+    }
+
+    // ── Reset from any previous run ──────────────────────
     ov.classList.remove('split', 'done');
-    icon.style.transition = 'none';
-    icon.style.left = '-70px';
-    icon.style.opacity = '0';
-    cut.style.opacity = '0';
+    top.style.transform  = 'translateY(0)';
+    bot.style.transform  = 'translateY(0)';
 
-    ov.style.display  = 'block';
-    ov.style.opacity  = '1';
+    // Reset icon WITHOUT transition so it snaps instantly
+    icon.style.transition  = 'none';
+    icon.style.opacity     = '0';
+    icon.style.left        = '-70px';
 
-    // 1. Show dashed cut line
-    setTimeout(() => { cut.style.opacity = '1'; }, 100);
+    // Reset cut line
+    cut.style.transition   = 'none';
+    cut.style.opacity      = '0';
 
-    // 2. Scissors slide across
+    // Show overlay (opacity driven by CSS, not inline style)
+    ov.style.display = 'block';
+
+    // Force a reflow so the browser commits all resets above
+    // before we start scheduling the animation steps.
+    void ov.offsetWidth;
+
+    // ── Step 1 — fade in the dashed cut line ─────────────
     setTimeout(() => {
-      icon.style.opacity = '1';
-      void icon.offsetWidth; // force reflow before transition
+      cut.style.transition = 'opacity 0.15s ease';
+      cut.style.opacity    = '1';
+    }, 100);
+
+    // ── Step 2 — scissors slide across ───────────────────
+    // Key fix: set opacity first (no transition), force reflow,
+    // THEN apply transition and move left in the same frame.
+    setTimeout(() => {
+      icon.style.opacity    = '1';           // snap visible
+      void icon.offsetWidth;                 // commit opacity change
       icon.style.transition = 'left 0.85s cubic-bezier(0.6,0,0.4,1)';
-      icon.style.left = (window.innerWidth + 80) + 'px';
+      icon.style.left       = (window.innerWidth + 80) + 'px';
     }, 200);
 
-    // 3. Page splits open
+    // ── Step 3 — page splits open ─────────────────────────
     setTimeout(() => {
-      cut.style.opacity = '0';
-      ov.classList.add('split');
+      cut.style.transition = 'opacity 0.1s ease';
+      cut.style.opacity    = '0';
+      ov.classList.add('split');   // CSS handles top/bottom halves
     }, 680);
 
-    // 4. Fade overlay out
-    setTimeout(() => { ov.classList.add('done'); }, 1650);
+    // ── Step 4 — fade overlay out ─────────────────────────
+    setTimeout(() => {
+      ov.classList.add('done');
+    }, 1650);
 
-    // 5. Navigate — your router takes over here
-    setTimeout(() => { loginFn(); }, 2000);
+    // ── Step 5 — navigate ─────────────────────────────────
+    setTimeout(() => {
+      loginFn();
+      // Clean up so overlay doesn't block the next page
+      ov.style.display = 'none';
+      ov.classList.remove('split', 'done');
+    }, 2000);
   };
 
   /* ─────────────────────────────────────────
@@ -78,12 +109,10 @@ export default function LoginPage() {
     setError('');
     setLoading(true);
     try {
-      // Authenticate first — get the resolved login action
-      // We pass a callback so scissors play THEN router navigates
       await new Promise((resolve, reject) => {
         login(email, password)
           .then((result) => {
-            // Login succeeded — play scissors, then resolve (triggers navigation inside login())
+            // Login succeeded — play scissors, THEN navigate
             runScissors(() => resolve(result));
           })
           .catch(reject);
@@ -95,7 +124,7 @@ export default function LoginPage() {
   };
 
   /* ─────────────────────────────────────────
-     Reset password handler (unchanged)
+     Reset password handler
   ───────────────────────────────────────── */
   const handleResetPassword = async (e) => {
     e.preventDefault();
@@ -112,7 +141,7 @@ export default function LoginPage() {
   };
 
   /* ─────────────────────────────────────────
-     Forgot password handler (unchanged)
+     Forgot password handler
   ───────────────────────────────────────── */
   const handleForgotPassword = async (e) => {
     e.preventDefault();
@@ -130,7 +159,7 @@ export default function LoginPage() {
   };
 
   /* ─────────────────────────────────────────
-     Force reset screen (unchanged)
+     Force reset screen
   ───────────────────────────────────────── */
   if (forceReset) {
     return (
@@ -172,11 +201,36 @@ export default function LoginPage() {
   ───────────────────────────────────────── */
   return (
     <div className="login-page">
-      {/* ── Scissors overlay ── */}
-      <div id="scissors-overlay" ref={overlayRef} style={{ display: 'none' }}>
-        <div id="half-top" ref={halfTopRef}><div className="fill" /></div>
+
+      {/* ── Scissors overlay ───────────────────────────────
+          Structure:
+            #scissors-overlay          — full-screen backdrop
+              #half-top .fill          — top half of page clone (slides up on .split)
+              #half-bottom .fill       — bottom half (slides down on .split)
+              #cut-line                — dashed horizontal line across the middle
+              #scissors-rider          — the ✂️ that slides across
+          CSS you need in LoginPage.css:
+            #scissors-overlay { position:fixed; inset:0; z-index:9999;
+                                 pointer-events:none; display:none; }
+            #half-top  { position:absolute; inset:0 0 50% 0; overflow:hidden; }
+            #half-bottom { position:absolute; inset:50% 0 0 0; overflow:hidden; }
+            #half-top .fill  { width:100%; height:200%; background:<your page bg>; }
+            #half-bottom .fill { width:100%; height:200%; background:<your page bg>;
+                                 transform:translateY(-50%); }
+            #scissors-overlay.split #half-top    { transition: transform 0.6s ease;
+                                                    transform: translateY(-100%); }
+            #scissors-overlay.split #half-bottom { transition: transform 0.6s ease;
+                                                    transform: translateY(100%); }
+            #scissors-overlay.done   { transition: opacity 0.35s ease; opacity:0; }
+            #cut-line { position:absolute; top:50%; left:0; right:0; height:2px;
+                        border-top:2px dashed rgba(0,0,0,0.25); opacity:0; }
+            #scissors-rider { position:absolute; top:calc(50% - 16px); left:-70px;
+                              font-size:32px; opacity:0; }
+      ─────────────────────────────────────────────────── */}
+      <div id="scissors-overlay" ref={overlayRef}>
+        <div id="half-top"    ref={halfTopRef}><div className="fill" /></div>
         <div id="half-bottom" ref={halfBotRef}><div className="fill" /></div>
-        <div id="cut-line" ref={cutLineRef} />
+        <div id="cut-line"    ref={cutLineRef} />
         <div id="scissors-rider" ref={riderRef}>✂️</div>
       </div>
 
