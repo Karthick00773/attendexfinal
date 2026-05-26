@@ -740,13 +740,20 @@ form a {
 /* ═══════════════════════════════════════════════════════════════
    SCISSORS REVEAL
    ═══════════════════════════════════════════════════════════════ */
+
+/*
+  IMPORTANT: display:none is the only default here.
+  All opacity/transition changes are handled entirely by JS (runScissors).
+  Do NOT add transition or opacity rules to #scissors-overlay here —
+  they will conflict with the JS-driven animation sequence.
+*/
 #scissors-overlay {
   position: fixed;
   inset: 0;
   z-index: 9000;
   pointer-events: none;
   overflow: hidden;
-  display: none;
+  display: none;        /* JS sets display:block, then animates opacity */
   opacity: 0;
 }
 
@@ -799,10 +806,8 @@ form a {
 #half-top .fill    { top: 0; }
 #half-bottom .fill { bottom: 0; }
 
+/* Split: panels fly apart when JS adds .split class */
 #scissors-overlay.split #half-top    { transform: translateY(-105%); }
 #scissors-overlay.split #half-bottom { transform: translateY(105%);  }
 
-#scissors-overlay.done {
-  transition: opacity 0.5s ease;
-  opacity: 0 !important;
-}
+/* NOTE: .done class removed — JS handles fade-out via style.opacity directly */

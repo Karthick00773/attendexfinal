@@ -30,54 +30,66 @@ export default function LoginPage() {
     const icon = riderRef.current;
     if (!ov || !cut || !icon) { loginFn(); return; }
 
-    // Hard reset — no transitions yet
-    ov.classList.remove('split', 'done');
+    // ── 1. Hard reset (no transitions yet) ──────────────────────
     ov.style.transition   = 'none';
-    icon.style.transition = 'none';
     cut.style.transition  = 'none';
-    icon.style.left       = '-70px';
-    icon.style.opacity    = '0';
-    cut.style.opacity     = '0';
+    icon.style.transition = 'none';
+    ov.classList.remove('split', 'done');
+    icon.style.left    = '-70px';
+    icon.style.opacity = '0';
+    cut.style.opacity  = '0';
+    ov.style.opacity   = '0';
 
-    // Show overlay invisible, reflow, then make visible
+    // ── 2. Mount overlay, then double-rAF so browser paints ─────
     ov.style.display = 'block';
-    ov.style.opacity = '0';
-    void ov.offsetWidth;
-    ov.style.opacity = '1';
 
-    // 1 — cut line fades in
-    setTimeout(() => {
-      cut.style.transition = 'opacity 0.2s ease';
-      cut.style.opacity    = '1';
-    }, 120);
+    requestAnimationFrame(() => requestAnimationFrame(() => {
 
-    // 2 — scissors slide across
-    setTimeout(() => {
-      icon.style.opacity = '1';
-      void icon.offsetWidth;
-      icon.style.transition = 'left 0.85s cubic-bezier(0.6,0,0.4,1)';
-      icon.style.left = (window.innerWidth + 80) + 'px';
-    }, 220);
+      // Fade overlay in
+      ov.style.transition = 'opacity 0.15s ease';
+      ov.style.opacity    = '1';
 
-    // 3 — page splits open
-    setTimeout(() => {
-      cut.style.transition = 'opacity 0.1s ease';
-      cut.style.opacity    = '0';
-      ov.classList.add('split');
-    }, 700);
+      // ── 3. Cut line fades in ──────────────────────────────────
+      setTimeout(() => {
+        cut.style.transition = 'opacity 0.2s ease';
+        cut.style.opacity    = '1';
+      }, 120);
 
-    // 4 — overlay fades out
-    setTimeout(() => {
-      ov.classList.add('done');
-    }, 1650);
+      // ── 4. Scissors slide across ──────────────────────────────
+      setTimeout(() => {
+        // First make it visible with no left-transition
+        icon.style.transition = 'opacity 0.1s ease';
+        icon.style.opacity    = '1';
 
-    // 5 — navigate + cleanup
-    setTimeout(() => {
-      loginFn();
-      ov.style.display = 'none';
-      ov.style.opacity = '0';
-      ov.classList.remove('split', 'done');
-    }, 2100);
+        // Then on next frame start the slide
+        requestAnimationFrame(() => {
+          icon.style.transition = 'left 0.85s cubic-bezier(0.6,0,0.4,1)';
+          icon.style.left = (window.innerWidth + 80) + 'px';
+        });
+      }, 220);
+
+      // ── 5. Snip! Page splits open ─────────────────────────────
+      setTimeout(() => {
+        cut.style.transition = 'opacity 0.1s ease';
+        cut.style.opacity    = '0';
+        ov.classList.add('split');
+      }, 700);
+
+      // ── 6. Overlay fades out ──────────────────────────────────
+      setTimeout(() => {
+        ov.style.transition = 'opacity 0.45s ease';
+        ov.style.opacity    = '0';
+      }, 1500);
+
+      // ── 7. Navigate + full cleanup ────────────────────────────
+      setTimeout(() => {
+        loginFn();
+        ov.style.display    = 'none';
+        ov.style.transition = 'none';
+        ov.classList.remove('split', 'done');
+      }, 1980);
+
+    }));
   };
 
   const handleLogin = async (e) => {
@@ -85,11 +97,8 @@ export default function LoginPage() {
     setError('');
     setLoading(true);
     try {
-      await new Promise((resolve, reject) => {
-        login(email, password)
-          .then((result) => { runScissors(() => resolve(result)); })
-          .catch(reject);
-      });
+      await login(email, password);   // credentials validated first
+      runScissors(() => {});          // animation plays, context handles navigation
     } catch (err) {
       setError(err.message || 'Invalid email or password. Please try again.');
       setLoading(false);
@@ -161,7 +170,7 @@ export default function LoginPage() {
   return (
     <div className="login-page">
 
-      {/* ── Scissors overlay — NO inline style, CSS owns display:none ── */}
+      {/* ── Scissors overlay ── */}
       <div id="scissors-overlay" ref={overlayRef}>
         <div id="half-top"    ref={halfTopRef}><div className="fill" /></div>
         <div id="half-bottom" ref={halfBotRef}><div className="fill" /></div>
@@ -225,7 +234,7 @@ export default function LoginPage() {
             <div className="toggle-panel toggle-left">
               <h1>Remember Your Password?</h1>
               <p>Go back to sign in with your credentials</p>
-              <button onClick={handleLogin} className="hidden" onClick={() => setIsActive(false)}>Sign In</button>
+              <button className="hidden" onClick={() => setIsActive(false)}>Sign In</button>
             </div>
             <div className="toggle-panel toggle-right">
               <h1>Forgot Your Password?</h1>
