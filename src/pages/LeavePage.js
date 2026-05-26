@@ -1,247 +1,292 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import { useApp } from '../context/AppContext';
-import './LeavePage.css';
+import './LoginPage.css';
 
-const leaveTypes = ['Paid Leave', 'Sick Leave', 'Casual Leave', 'Emergency Leave'];
+export default function LoginPage() {
+  const { login, resetPassword, forceReset } = useApp();
 
-function LeaveCard({ leave, onApprove, onReject, isCeo, currentUserId }) {
-  const isOwn = leave.user_id === currentUserId;
-  const statusMeta = {
-    pending:  { label: 'Pending',  color: 'badge-orange' },
-    approved: { label: 'Approved', color: 'badge-green'  },
-    rejected: { label: 'Rejected', color: 'badge-red'    },
+  const [email, setEmail]               = useState('');
+  const [password, setPassword]         = useState('');
+  const [newPassword, setNewPassword]   = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [error, setError]               = useState('');
+  const [loading, setLoading]           = useState(false);
+  const [showPw, setShowPw]             = useState(false);
+  const [isActive, setIsActive]         = useState(false);
+  const [forgotEmail, setForgotEmail]   = useState('');
+  const [forgotError, setForgotError]   = useState('');
+  const [forgotSuccess, setForgotSuccess] = useState('');
+  const [forgotLoading, setForgotLoading] = useState(false);
+
+  const overlayRef = useRef(null);
+  const cutLineRef = useRef(null);
+  const riderRef   = useRef(null);
+  const halfTopRef = useRef(null);
+  const halfBotRef = useRef(null);
+
+  const runScissors = (loginFn) => {
+    const ov   = overlayRef.current;
+    const cut  = cutLineRef.current;
+    const icon = riderRef.current;
+    if (!ov || !cut || !icon) { loginFn(); return; }
+
+    // ── 1. Hard-reset everything synchronously ──────────────────
+    ov.classList.remove('split', 'done');
+
+    // Remove transition before resetting positions so nothing animates back
+    ov.style.transition   = 'none';
+    icon.style.transition = 'none';
+    cut.style.transition  = 'none';
+
+    icon.style.left    = '-70px';
+    icon.style.opacity = '0';
+    cut.style.opacity  = '0';
+
+    // Show overlay but keep it invisible until after reflow
+    ov.style.display = 'block';
+    ov.style.opacity = '0';
+
+    // Force the browser to commit all the resets above
+    void ov.offsetWidth;
+
+    // Now make it visible
+    ov.style.opacity = '1';
+
+    // ── 2. Dashed cut-line fades in ─────────────────────────────
+    setTimeout(() => {
+      cut.style.transition = 'opacity 0.2s ease';
+      cut.style.opacity    = '1';
+    }, 120);
+
+    // ── 3. Scissors slide across ────────────────────────────────
+    // opacity snap first → reflow → then transition left
+    setTimeout(() => {
+      icon.style.opacity = '1';
+      void icon.offsetWidth;                  // commit the opacity snap
+      icon.style.transition = 'left 0.85s cubic-bezier(0.6,0,0.4,1)';
+      icon.style.left = (window.innerWidth + 80) + 'px';
+    }, 220);
+
+    // ── 4. Page splits open ─────────────────────────────────────
+    setTimeout(() => {
+      cut.style.transition = 'opacity 0.1s ease';
+      cut.style.opacity    = '0';
+      ov.classList.add('split');
+    }, 700);
+
+    // ── 5. Whole overlay fades out ──────────────────────────────
+    setTimeout(() => {
+      ov.classList.add('done');
+    }, 1650);
+
+    // ── 6. Navigate + cleanup ───────────────────────────────────
+    setTimeout(() => {
+      loginFn();
+      // Hide so it can't block the next page
+      ov.style.display = 'none';
+      ov.style.opacity = '0';
+      ov.classList.remove('split', 'done');
+    }, 2100);
   };
-  const s = statusMeta[leave.status] || { label: leave.status, color: 'badge-orange' };
-  const user = leave.users || {};
-  const displayName = user.name || (isOwn ? 'You' : 'Unknown');
-  const displayAvatar = user.avatar_initials || displayName.slice(0, 2).toUpperCase();
 
-  return (
-    <div className={`leave-card card ${leave.status}`}>
-      <div className="leave-card-header">
-        <div className="leave-card-user">
-          <div className="avatar avatar-sm">{displayAvatar}</div>
-          <div>
-            <span className="leave-card-name">{displayName}</span>
-            <span className="leave-card-applied">Applied: {new Date(leave.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
-          </div>
-        </div>
-        <div className="leave-card-right">
-          <span className={`badge ${s.color}`}>{s.label}</span>
-          {leave.status === 'pending' && isCeo && (
-            <div className="leave-actions">
-              <button className="btn btn-success btn-sm" onClick={() => onApprove(leave.id)}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                Approve
-              </button>
-              <button className="btn btn-danger btn-sm" onClick={() => onReject(leave.id)}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                Reject
-              </button>
-            </div>
-          )}
-          {leave.status === 'pending' && isOwn && !isCeo && (
-            <div className="leave-actions">
-              <button className="btn btn-outline btn-sm" style={{ color: 'var(--red)', borderColor: 'var(--red)' }}
-                onClick={() => onApprove(leave.id, 'cancel')}>
-                Cancel
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-      <div className="leave-card-body">
-        <div className="leave-detail"><span className="leave-detail-label">Type</span><span className="leave-detail-val leave-type-pill">{leave.type}</span></div>
-        <div className="leave-detail"><span className="leave-detail-label">From</span><span className="leave-detail-val">{new Date(leave.from_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span></div>
-        <div className="leave-detail"><span className="leave-detail-label">To</span><span className="leave-detail-val">{new Date(leave.to_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span></div>
-        <div className="leave-detail"><span className="leave-detail-label">Days</span><span className="leave-detail-val" style={{ color: 'var(--accent)', fontWeight: 700 }}>{leave.days} day{leave.days > 1 ? 's' : ''}</span></div>
-      </div>
-      {leave.reason && (
-        <div className="leave-reason">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-          </svg>
-          {leave.reason}
-        </div>
-      )}
-    </div>
-  );
-}
-
-export default function LeavePage() {
-  const { currentUser, leaveList, fetchLeaves, applyLeave, approveLeave, rejectLeave, cancelLeave } = useApp();
-  const isAdminOrCeo = ['admin', 'ceo'].includes(currentUser?.role);
-  const isEmployee = currentUser?.role === 'employee';
-
-  const [showForm, setShowForm] = useState(false);
-  const [filter, setFilter] = useState('all');
-  const [form, setForm] = useState({ type: 'Paid Leave', from_date: '', to_date: '', reason: '' });
-  const [submitting, setSubmitting] = useState(false);
-  const [success, setSuccess] = useState('');
-  const [, setActionLoading] = useState(null);
-  const [error, setError] = useState('');
-
-  useEffect(() => { fetchLeaves(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const myLeaves = isEmployee ? leaveList.filter(l => l.user_id === currentUser.id) : leaveList;
-  const filteredLeaves = filter === 'all' ? myLeaves : myLeaves.filter(l => l.status === filter);
-  const pendingCount = leaveList.filter(l => l.status === 'pending').length;
-
-  const handleSubmit = async (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    if (!form.from_date || !form.to_date || !form.reason) return;
-    setSubmitting(true);
     setError('');
+    setLoading(true);
     try {
-      await applyLeave(form);
-      setSuccess('Leave request submitted! CEO will review your request.');
-      setShowForm(false);
-      setForm({ type: 'Paid Leave', from_date: '', to_date: '', reason: '' });
-      setTimeout(() => setSuccess(''), 4000);
+      await new Promise((resolve, reject) => {
+        login(email, password)
+          .then((result) => { runScissors(() => resolve(result)); })
+          .catch(reject);
+      });
     } catch (err) {
-      setError(err.message || 'Failed to submit leave request.');
-    } finally {
-      setSubmitting(false);
+      setError(err.message || 'Invalid email or password. Please try again.');
+      setLoading(false);
     }
   };
 
-  const handleApprove = async (id, action) => {
-    setActionLoading(id);
-    setError('');
+  const handleResetPassword = async (e) => {
+    e.preventDefault();
+    if (newPassword.length < 8) { setError('Password must be at least 8 characters.'); return; }
+    if (newPassword !== confirmPassword) { setError('Passwords do not match.'); return; }
+    setLoading(true); setError('');
     try {
-      if (action === 'cancel') {
-        await cancelLeave(id);
-      } else {
-        await approveLeave(id);
-      }
+      await resetPassword(newPassword);
     } catch (err) {
-      setError(err.message || 'Action failed.');
+      setError(err.message || 'Password reset failed. Please try again.');
     } finally {
-      setActionLoading(null);
+      setLoading(false);
     }
   };
 
-  const handleReject = async (id) => {
-    setActionLoading(id);
-    setError('');
+  const handleForgotPassword = async (e) => {
+    e.preventDefault();
+    setForgotError(''); setForgotSuccess(''); setForgotLoading(true);
     try {
-      await rejectLeave(id);
+      if (!forgotEmail) { setForgotError('Please enter your email address.'); return; }
+      setForgotSuccess('Password reset link sent to your email. Please check your inbox.');
+      setForgotEmail('');
+      setTimeout(() => setForgotSuccess(''), 5000);
     } catch (err) {
-      setError(err.message || 'Action failed.');
+      setForgotError(err.message || 'Failed to send reset email. Please try again.');
     } finally {
-      setActionLoading(null);
+      setForgotLoading(false);
     }
   };
 
-  return (
-    <div className="page animate-fadeup">
-      <div className="page-header">
-        <div>
-          <h2 className="page-title">{isAdminOrCeo ? 'Leave Approvals' : isEmployee ? 'My Leaves' : 'Leave Management'}</h2>
-          <p className="page-sub">
-            {isAdminOrCeo ? `${pendingCount} request${pendingCount !== 1 ? 's' : ''} awaiting your approval`
-              : isEmployee ? 'Apply and track your leave requests'
-              : 'Monitor employee leave requests'}
-          </p>
-        </div>
-        {isEmployee && (
-          <button className="btn btn-primary" onClick={() => setShowForm(s => !s)}>
-            {showForm ? (
-              <><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Cancel</>
-            ) : (
-              <><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Apply for Leave</>
-            )}
-          </button>
-        )}
-      </div>
-
-      {success && (
-        <div className="leave-success">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-          {success}
-        </div>
-      )}
-      {error && (
-        <div className="leave-success" style={{ background: '#fef2f2', borderColor: '#fca5a5', color: '#dc2626' }}>
-          {error}
-        </div>
-      )}
-
-      {isAdminOrCeo && pendingCount > 0 && (
-        <div className="leave-ceo-banner">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-          <div><strong>{pendingCount} pending leave request{pendingCount !== 1 ? 's' : ''}</strong> require{pendingCount === 1 ? 's' : ''} your approval.</div>
-        </div>
-      )}
-
-      {showForm && isEmployee && (
-        <div className="card leave-form-card animate-fadeup">
-          <h3 className="card-title">Apply for Leave</h3>
-          <form onSubmit={handleSubmit} className="leave-form">
-            <div className="leave-form-row">
-              <div className="form-group">
-                <label className="label">Leave Type</label>
-                <select className="input" value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))}>
-                  {leaveTypes.map(t => <option key={t}>{t}</option>)}
-                </select>
-              </div>
-              <div className="form-group">
-                <label className="label">From Date</label>
-                <input type="date" className="input" value={form.from_date}
-                  min={new Date().toISOString().split('T')[0]}
-                  onChange={e => setForm(f => ({ ...f, from_date: e.target.value }))} required />
-              </div>
-              <div className="form-group">
-                <label className="label">To Date</label>
-                <input type="date" className="input" value={form.to_date}
-                  min={form.from_date || new Date().toISOString().split('T')[0]}
-                  onChange={e => setForm(f => ({ ...f, to_date: e.target.value }))} required />
-              </div>
+  if (forceReset) {
+    return (
+      <div className="reset-page">
+        <div className="reset-card">
+          <div className="reset-icon">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+          </div>
+          <h2 className="reset-title">Set new password</h2>
+          <p className="reset-subtitle">This is your first login. Please set a secure password to continue.</p>
+          <form onSubmit={handleResetPassword} className="reset-form">
+            <div className="form-group">
+              <label>New password</label>
+              <input type="password" placeholder="Minimum 8 characters"
+                value={newPassword} onChange={e => setNewPassword(e.target.value)}
+                required minLength={8}/>
             </div>
             <div className="form-group">
-              <label className="label">Reason</label>
-              <textarea className="input" rows={3} placeholder="Briefly explain the reason..."
-                value={form.reason} onChange={e => setForm(f => ({ ...f, reason: e.target.value }))} required />
+              <label>Confirm password</label>
+              <input type="password" placeholder="Re-enter your password"
+                value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)}
+                required/>
             </div>
-            <div className="leave-form-actions">
-              <button type="submit" className="btn btn-primary" disabled={submitting}>
-                {submitting ? 'Submitting...' : 'Submit Request'}
-              </button>
-              <button type="button" className="btn btn-outline" onClick={() => setShowForm(false)}>Cancel</button>
-            </div>
+            {error && <div className="login-error">{error}</div>}
+            <button type="submit" className="reset-submit" disabled={loading}>
+              {loading ? 'Saving…' : 'Set password & continue'}
+            </button>
           </form>
         </div>
-      )}
+      </div>
+    );
+  }
 
-      {/* Filter tabs */}
-      <div className="leave-filter-tabs">
-        {['all', 'pending', 'approved', 'rejected'].map(f => (
-          <button key={f} className={`leave-filter-tab ${filter === f ? 'active' : ''}`} onClick={() => setFilter(f)}>
-            {f.charAt(0).toUpperCase() + f.slice(1)}
-            {f === 'pending' && pendingCount > 0 && (
-              <span className="leave-filter-count">{pendingCount}</span>
-            )}
-          </button>
-        ))}
+  return (
+    <div className="login-page">
+
+      {/*
+        overlay starts with display:none via CSS (not inline style)
+        so React doesn't fight the JS-driven display toggling
+      */}
+      <div id="scissors-overlay" ref={overlayRef}>
+        <div id="half-top"    ref={halfTopRef}><div className="fill" /></div>
+        <div id="half-bottom" ref={halfBotRef}><div className="fill" /></div>
+        <div id="cut-line"    ref={cutLineRef} />
+        <div id="scissors-rider" ref={riderRef}>✂️</div>
       </div>
 
-      <div className="leave-list">
-        {filteredLeaves.length === 0 ? (
-          <div className="card" style={{ padding: 32, textAlign: 'center' }}>
-            <p className="empty-msg">No {filter !== 'all' ? filter : ''} leave requests found.</p>
-          </div>
-        ) : (
-          filteredLeaves.map(leave => (
-            <LeaveCard
-              key={leave.id}
-              leave={leave}
-              onApprove={handleApprove}
-              onReject={handleReject}
-              isCeo={isAdminOrCeo}
-              currentUserId={currentUser?.id}
+      <div className={`login-container${isActive ? ' active' : ''}`}>
+
+        {/* Forgot password panel */}
+        <div className="form-container sign-up">
+          <form onSubmit={handleForgotPassword}>
+            <h1>Forgot Password?</h1>
+            <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 16 }}>
+              Enter your email address and we'll send you a link to reset your password.
+            </p>
+            <input type="email" placeholder="Enter your email"
+              value={forgotEmail} onChange={e => setForgotEmail(e.target.value)} required />
+            {forgotSuccess && (
+              <div className="login-success" style={{ width: '100%', marginTop: 6 }}>
+                {forgotSuccess}
+              </div>
+            )}
+            {forgotError && (
+              <div className="login-error" style={{ width: '100%', marginTop: 6 }}>
+                {forgotError}
+              </div>
+            )}
+            <button type="submit" disabled={forgotLoading}>
+              {forgotLoading ? 'Sending...' : 'Send Reset Link'}
+            </button>
+          </form>
+        </div>
+
+        {/* Sign in panel */}
+        <div className="form-container sign-in">
+          <form onSubmit={handleLogin}>
+            <h1>Sign In</h1>
+            <span>Use your email &amp; password to sign in</span>
+            <input
+              type="email"
+              placeholder="Email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              required
+              autoComplete="email"
             />
-          ))
-        )}
+            <div className="pw-row">
+              <input
+                type={showPw ? 'text' : 'password'}
+                placeholder="Password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                required
+                autoComplete="current-password"
+                className="pw-input"
+              />
+              <button
+                type="button"
+                className="pw-eye"
+                tabIndex={-1}
+                aria-label={showPw ? 'Hide password' : 'Show password'}
+                onPointerDown={e => e.preventDefault()}
+                onClick={() => setShowPw(s => !s)}
+              >
+                {showPw
+                  ? <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+                      <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+                      <line x1="1" y1="1" x2="23" y2="23"/>
+                    </svg>
+                  : <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                      <circle cx="12" cy="12" r="3"/>
+                    </svg>
+                }
+              </button>
+            </div>
+
+            <button type="button" className="link-btn" onClick={() => setIsActive(true)}>
+              Forget Your Password?
+            </button>
+
+            {error && (
+              <div className="login-error" style={{ width: '100%', marginTop: 6 }}>
+                {error}
+              </div>
+            )}
+
+            <button type="submit" disabled={loading}>
+              {loading ? 'Signing in…' : 'Sign In'}
+            </button>
+          </form>
+        </div>
+
+        {/* Sliding toggle panel */}
+        <div className="toggle-container">
+          <div className="toggle">
+            <div className="toggle-panel toggle-left">
+              <h1>Remember Your Password?</h1>
+              <p>Go back to sign in with your credentials</p>
+              <button className="hidden" onClick={() => setIsActive(false)}>Sign In</button>
+            </div>
+            <div className="toggle-panel toggle-right">
+              <h1>Forgot Your Password?</h1>
+              <p>Get help resetting your password in just a few steps</p>
+              <button className="hidden" onClick={() => setIsActive(true)}>Forgot Password</button>
+            </div>
+          </div>
+        </div>
+
       </div>
     </div>
   );
