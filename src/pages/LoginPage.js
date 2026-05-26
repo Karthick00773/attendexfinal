@@ -5,90 +5,97 @@ import './LoginPage.css';
 export default function LoginPage() {
   const { login, resetPassword, forceReset } = useApp();
 
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
+  const [email, setEmail]               = useState('');
+  const [password, setPassword]         = useState('');
+  const [newPassword, setNewPassword]   = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [showPw, setShowPw] = useState(false);
-  const [isActive, setIsActive] = useState(false);
-  const [forgotEmail, setForgotEmail] = useState('');
-  const [forgotError, setForgotError] = useState('');
+  const [error, setError]               = useState('');
+  const [loading, setLoading]           = useState(false);
+  const [showPw, setShowPw]             = useState(false);
+  const [isActive, setIsActive]         = useState(false);
+  const [forgotEmail, setForgotEmail]   = useState('');
+  const [forgotError, setForgotError]   = useState('');
   const [forgotSuccess, setForgotSuccess] = useState('');
   const [forgotLoading, setForgotLoading] = useState(false);
 
   const overlayRef = useRef(null);
-  const cutLineRef = useRef(null);
+  const cutRef     = useRef(null);
   const riderRef   = useRef(null);
 
+  /* ─────────────────────────────────────────────────────────────
+     SCISSORS ANIMATION
+     Overlay MUST be a direct child of .login-page (NOT inside
+     .login-container which has overflow:hidden) so position:fixed
+     can escape all clipping ancestors.
+  ───────────────────────────────────────────────────────────── */
   const runScissors = (onDone) => {
-    const ov   = overlayRef.current;
-    const cut  = cutLineRef.current;
-    const icon = riderRef.current;
+    const ov = overlayRef.current;
+    const cl = cutRef.current;
+    const sc = riderRef.current;
 
-    // Safety: if refs missing just navigate
-    if (!ov || !cut || !icon) { onDone(); return; }
+    // if refs missing just navigate immediately
+    if (!ov || !cl || !sc) { onDone(); return; }
 
-    // ── RESET everything ────────────────────────────────────────
-    ov.style.cssText   = 'display:block; opacity:0;';
-    cut.style.cssText  = 'opacity:0; transition:none;';
-    icon.style.cssText = 'left:-70px; opacity:0; transition:none;';
+    // 1 ── hard reset, no transitions
     ov.classList.remove('sc-split');
+    ov.style.cssText = 'display:block; opacity:0;';
+    cl.style.cssText = 'opacity:0; transition:none;';
+    sc.style.cssText = 'left:-70px; opacity:0; transition:none; transform:scaleX(-1);';
 
-    // ── Double rAF so browser paints the block+opacity:0 first ──
+    // 2 ── double-rAF: guarantees browser paints display:block before we animate
     requestAnimationFrame(() => requestAnimationFrame(() => {
 
-      // 1 — Overlay fades in
-      ov.style.transition = 'opacity 0.15s ease';
+      // overlay fades in
+      ov.style.transition = 'opacity 0.2s ease';
       ov.style.opacity    = '1';
 
-      // 2 — Dashed cut-line appears
+      // dashed cut-line appears
       setTimeout(() => {
-        cut.style.transition = 'opacity 0.2s ease';
-        cut.style.opacity    = '1';
+        cl.style.transition = 'opacity 0.25s ease';
+        cl.style.opacity    = '1';
       }, 150);
 
-      // 3 — Scissors appear then slide across
+      // scissors pop in, then slide across full screen
       setTimeout(() => {
-        icon.style.opacity    = '1';
-        icon.style.transition = 'none';
+        sc.style.transition = 'opacity 0.12s ease';
+        sc.style.opacity    = '1';
         requestAnimationFrame(() => {
-          icon.style.transition = 'left 0.85s cubic-bezier(0.6,0,0.4,1)';
-          icon.style.left = (window.innerWidth + 80) + 'px';
+          sc.style.transition = 'left 0.9s cubic-bezier(0.55,0,0.35,1)';
+          sc.style.left = (window.innerWidth + 80) + 'px';
         });
-      }, 280);
+      }, 300);
 
-      // 4 — SNIP: cut-line fades, page splits open
+      // SNIP — cut-line gone, panels fly apart
       setTimeout(() => {
-        cut.style.transition = 'opacity 0.08s';
-        cut.style.opacity    = '0';
+        cl.style.transition = 'opacity 0.08s';
+        cl.style.opacity    = '0';
         ov.classList.add('sc-split');
-      }, 750);
+      }, 800);
 
-      // 5 — Overlay fades out
+      // overlay fades out
       setTimeout(() => {
-        ov.style.transition = 'opacity 0.4s ease';
+        ov.style.transition = 'opacity 0.5s ease';
         ov.style.opacity    = '0';
-      }, 1550);
+      }, 1600);
 
-      // 6 — Navigate + full cleanup
+      // navigate + full cleanup
       setTimeout(() => {
         onDone();
         ov.style.cssText = 'display:none; opacity:0;';
         ov.classList.remove('sc-split');
-      }, 2000);
+      }, 2150);
 
     }));
   };
 
+  /* ── handlers ─────────────────────────────────────────────── */
   const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
     try {
-      await login(email, password);        // validate first
-      runScissors(() => {});               // then animate (AppContext handles redirect)
+      await login(email, password);   // validate first — throws on bad creds
+      runScissors(() => {});          // AppContext redirect happens after login()
     } catch (err) {
       setError(err.message || 'Invalid email or password. Please try again.');
       setLoading(false);
@@ -114,7 +121,7 @@ export default function LoginPage() {
     setForgotError(''); setForgotSuccess(''); setForgotLoading(true);
     try {
       if (!forgotEmail) { setForgotError('Please enter your email address.'); return; }
-      setForgotSuccess('Password reset link sent to your email. Please check your inbox.');
+      setForgotSuccess('Password reset link sent! Please check your inbox.');
       setForgotEmail('');
       setTimeout(() => setForgotSuccess(''), 5000);
     } catch (err) {
@@ -124,6 +131,7 @@ export default function LoginPage() {
     }
   };
 
+  /* ── force-reset screen ───────────────────────────────────── */
   if (forceReset) {
     return (
       <div className="reset-page">
@@ -157,49 +165,60 @@ export default function LoginPage() {
     );
   }
 
+  /* ── main login page ──────────────────────────────────────── */
   return (
-    // ── login-page is the root ──────────────────────────────────
     <div className="login-page">
 
       {/*
-        ✅ OVERLAY IS HERE — direct child of .login-page
-           NOT inside .login-container (which has overflow:hidden)
-           position:fixed so it covers the full screen
+        ╔══════════════════════════════════════════════════════╗
+        ║  SCISSORS OVERLAY                                    ║
+        ║  • Direct child of .login-page                      ║
+        ║  • NEVER inside .login-container (overflow:hidden   ║
+        ║    would clip the whole animation)                   ║
+        ║  • position:fixed in CSS escapes every parent       ║
+        ╚══════════════════════════════════════════════════════╝
       */}
       <div className="sc-overlay" ref={overlayRef}>
-        <div className="sc-half sc-top"><div className="sc-fill" /></div>
-        <div className="sc-half sc-bot"><div className="sc-fill" /></div>
-        <div className="sc-cutline" ref={cutLineRef} />
-        <div className="sc-rider"   ref={riderRef}>✂️</div>
+        <div className="sc-top"><div className="sc-fill" /></div>
+        <div className="sc-bot"><div className="sc-fill" /></div>
+        <div className="sc-cut"   ref={cutRef} />
+        <div className="sc-rider" ref={riderRef}>✂️</div>
       </div>
 
       <div className={`login-container${isActive ? ' active' : ''}`}>
 
+        {/* ── forgot-password panel ── */}
         <div className="form-container sign-up">
           <form onSubmit={handleForgotPassword}>
             <h1>Forgot Password?</h1>
-            <p style={{ fontSize:13, color:'var(--muted)', marginBottom:16 }}>
-              Enter your email address and we'll send you a link to reset your password.
+            <p style={{ fontSize:13, color:'#5ba3d9', marginBottom:16 }}>
+              Enter your email and we'll send a reset link.
             </p>
             <input type="email" placeholder="Enter your email"
               value={forgotEmail} onChange={e => setForgotEmail(e.target.value)} required />
             {forgotSuccess && (
-              <div className="login-success" style={{ width:'100%', marginTop:6, background:'#dcfce7', borderColor:'#86efac', color:'#16a34a' }}>
+              <div style={{ width:'100%', marginTop:6, padding:'10px 14px', background:'#dcfce7', border:'1px solid #86efac', color:'#16a34a', borderRadius:8, fontSize:13 }}>
                 {forgotSuccess}
               </div>
             )}
             {forgotError && <div className="login-error" style={{ width:'100%', marginTop:6 }}>{forgotError}</div>}
-            <button type="submit" disabled={forgotLoading}>{forgotLoading ? 'Sending...' : 'Send Reset Link'}</button>
+            <button type="submit" disabled={forgotLoading}>
+              {forgotLoading ? 'Sending...' : 'Send Reset Link'}
+            </button>
           </form>
         </div>
 
+        {/* ── sign-in panel ── */}
         <div className="form-container sign-in">
           <form onSubmit={handleLogin}>
             <h1>Sign In</h1>
             <span>Use your email &amp; password to sign in</span>
+
             <input type="email" placeholder="Email"
-              value={email} onChange={e => setEmail(e.target.value)} required autoComplete="email" />
-            <div className="input-icon-wrap" style={{ width:'100%' }}>
+              value={email} onChange={e => setEmail(e.target.value)}
+              required autoComplete="email" />
+
+            <div className="input-icon-wrap">
               <input
                 type={showPw ? 'text' : 'password'}
                 className="input-with-toggle"
@@ -208,11 +227,8 @@ export default function LoginPage() {
                 onChange={e => setPassword(e.target.value)}
                 required
                 autoComplete="current-password"
-                style={{ width:'100%', background:'#eef5fb', border:'none', margin:'8px 0', padding:'10px 44px 10px 15px', fontSize:13, borderRadius:8, outline:'none', color:'#2a5a8c' }}
               />
-              <button
-                type="button"
-                className="pw-toggle"
+              <button type="button" className="pw-toggle"
                 onMouseDown={e => e.preventDefault()}
                 onClick={() => setShowPw(s => !s)}
               >
@@ -222,12 +238,20 @@ export default function LoginPage() {
                 }
               </button>
             </div>
-            <button type="button" className="link-btn" onClick={() => setIsActive(true)}>Forget Your Password?</button>
+
+            <button type="button" className="link-btn" onClick={() => setIsActive(true)}>
+              Forget Your Password?
+            </button>
+
             {error && <div className="login-error" style={{ width:'100%', marginTop:6 }}>{error}</div>}
-            <button type="submit" disabled={loading}>{loading ? 'Signing in…' : 'Sign In'}</button>
+
+            <button type="submit" disabled={loading}>
+              {loading ? 'Signing in…' : 'Sign In'}
+            </button>
           </form>
         </div>
 
+        {/* ── sliding toggle panel ── */}
         <div className="toggle-container">
           <div className="toggle">
             <div className="toggle-panel toggle-left">
