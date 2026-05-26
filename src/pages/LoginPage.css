@@ -1,78 +1,739 @@
 /* ═══════════════════════════════════════════════════════════════
-   SCISSORS REVEAL — replace the existing #scissors-overlay block
-   in your LoginPage.css with this
+   SLIDING PANEL LOGIN — clean + fully responsive
    ═══════════════════════════════════════════════════════════════ */
 
-#scissors-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 9000;
-  pointer-events: none;
-  overflow: hidden;
-  /* IMPORTANT: hidden by default via display, NOT opacity.
-     Opacity is controlled by JS so .done fade works correctly. */
-  display: none;
-  opacity: 0;
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: var(--bg-gradient);
+  background-attachment: fixed;
+  font-family: var(--font);
+  padding: 16px;
 }
 
-#cut-line {
+/* ── Container ── */
+.login-container {
+  position: relative;
+  width: 768px;
+  max-width: 100%;
+  min-height: 480px;
+  background: #fff;
+  border-radius: 30px;
+  box-shadow: 0 5px 35px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  transition: all 0.6s ease-in-out;
+}
+
+/* ── Form panels ── */
+.form-container {
   position: absolute;
-  left: 0; right: 0;
-  top: 50%;
-  height: 2px;
-  background: repeating-linear-gradient(
-    90deg,
-    #3f79af 0, #3f79af 10px,
-    transparent 10px, transparent 20px
-  );
+  top: 0;
+  height: 100%;
+  transition: all 0.6s ease-in-out;
+}
+
+.sign-in {
+  left: 0;
+  width: 50%;
+  z-index: 2;
+}
+
+.login-container.active .sign-in {
+  transform: translateX(100%);
+}
+
+.sign-up {
+  left: 0;
+  width: 50%;
   opacity: 0;
+  z-index: 1;
+}
+
+.login-container.active .sign-up {
+  transform: translateX(100%);
+  opacity: 1;
+  z-index: 5;
+  animation: move 0.6s;
+}
+
+@keyframes move {
+  0%, 49.99% { opacity: 0; z-index: 1; }
+  50%, 100%  { opacity: 1; z-index: 5; }
+}
+
+/* ── Form base ── */
+form {
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  padding: 0 50px;
+  height: 100%;
+  text-align: center;
+}
+
+form h1 {
+  font-size: 2.2rem;
+  margin-bottom: 10px;
+  color: #333;
+}
+
+form input {
+  background: #eee;
+  padding: 16px 15px;
+  margin: 8px 0;
+  width: 100%;
+  border: none;
+  outline: none;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+form button {
+  background: linear-gradient(135deg, var(--teal), var(--teal-dark));
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 12px 45px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 15px;
+  transition: 0.3s;
+}
+
+form button:hover {
+  transform: scale(1.02);
+}
+
+form span {
+  font-size: 12px;
+  margin-top: 10px;
+  color: #666;
+  margin-bottom: 10px;
+}
+
+form a {
+  color: #333;
+  font-size: 12px;
+  text-decoration: none;
+  margin: 15px 0 10px;
+  display: block;
+}
+
+/* ── Social icons ── */
+.login-social-icons {
+  margin: 20px 0;
+}
+
+.login-social-icons button {
+  border: 1px solid #ddd;
+  border-radius: 20%;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  margin: 0 3px;
+  width: 40px;
+  height: 40px;
+  color: #333;
+  background: transparent;
+  transition: 0.3s;
+}
+
+.login-social-icons button:hover {
+  background: #f0f0f0;
+}
+
+/* ── Sliding toggle panel ── */
+.toggle-container {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 50%;
+  height: 100%;
+  overflow: hidden;
+  transition: all 0.6s ease-in-out;
+  border-radius: 150px 0 0 100px;
+  z-index: 1000;
+}
+
+.login-container.active .toggle-container {
+  transform: translateX(-100%);
+  border-radius: 0 150px 100px 0;
+}
+
+.toggle {
+  background: linear-gradient(to right, var(--indigo), var(--teal));
+  color: #fff;
+  position: relative;
+  left: -100%;
+  height: 100%;
+  width: 200%;
+  transform: translateX(0);
+  transition: all 0.6s ease-in-out;
+}
+
+.login-container.active .toggle {
+  transform: translateX(50%);
+}
+
+.toggle-panel {
+  position: absolute;
+  width: 50%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  padding: 0 30px;
+  text-align: center;
+  top: 0;
+  transition: all 0.6s ease-in-out;
+}
+
+.toggle-left {
+  transform: translateX(-200%);
+}
+
+.login-container.active .toggle-left {
+  transform: translateX(0);
+}
+
+.toggle-right {
+  right: 0;
+  transform: translateX(0);
+}
+
+.login-container.active .toggle-right {
+  transform: translateX(200%);
+}
+
+.toggle-panel h1 {
+  font-size: 2.1rem;
+  margin-bottom: 10px;
+}
+
+.toggle-panel p {
+  font-size: 14px;
+  line-height: 20px;
+  letter-spacing: 0.3px;
+  margin-bottom: 20px;
+}
+
+.hidden {
+  background: transparent;
+  border: 2px solid #fff;
+  color: #fff;
+  padding: 12px 30px;
+  cursor: pointer;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  margin-top: 20px;
+  transition: 0.3s;
+}
+
+.hidden:hover {
+  background: #fff;
+  color: var(--indigo);
+}
+
+/* ── Input with password toggle ── */
+.input-icon-wrap {
+  position: relative;
+  width: 100%;
+}
+
+.input-with-toggle {
+  padding-right: 44px !important;
+}
+
+/* FIX 1: Eye button works on mobile touch */
+.pw-toggle {
+  position: absolute;
+  right: 12px;
+  top: 50%;
   transform: translateY(-50%);
-  /* transition controlled by JS per-step */
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  padding: 8px;                          /* larger tap target for fingers */
+  margin-top: 0;
+  -webkit-tap-highlight-color: transparent; /* removes grey flash on iOS tap */
+  touch-action: manipulation;               /* prevents 300ms tap delay on mobile */
+  z-index: 10;
 }
 
-#scissors-rider {
-  position: absolute;
-  top: 50%;
-  left: -70px;
-  transform: translateY(-60%) scaleX(-1);
-  font-size: 32px;
-  line-height: 1;
-  opacity: 0;
-  filter: drop-shadow(0 2px 6px rgba(26,61,97,0.25));
-  /* transition controlled by JS */
+.pw-toggle:hover,
+.pw-toggle:active {
+  color: var(--accent);
+  transform: translateY(-50%);  /* FIX: never change transform on hover — it was shifting the tap target */
 }
 
-#half-top,
-#half-bottom {
-  position: absolute;
-  left: 0;
+/* ── Error ── */
+.login-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  background: var(--red-light);
+  color: var(--red);
+  border-radius: var(--radius-sm);
+  font-size: 0.87rem;
+  font-weight: 500;
+  margin: 10px 0;
   width: 100%;
-  height: 50%;
-  overflow: hidden;
-  transition: transform 1s cubic-bezier(0.77, 0, 0.18, 1);
 }
 
-#half-top    { top: 0;    transform: translateY(0); }
-#half-bottom { bottom: 0; transform: translateY(0); }
+/* ── Reset banner ── */
+.login-reset-banner {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  background: #fef3c7;
+  border: 1px solid #fde68a;
+  border-radius: 10px;
+  padding: 14px;
+  margin-bottom: 20px;
+  color: #92400e;
+}
 
-/* .fill covers the full half — background matches .login-page */
-#half-top .fill,
-#half-bottom .fill {
-  position: absolute;
-  left: 0;
+.login-reset-banner svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.login-reset-banner strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.login-reset-banner p {
+  font-size: 0.82rem;
+  margin: 0;
+}
+
+/* ── Submit ── */
+.login-submit {
   width: 100%;
-  height: 200%;
-  background: linear-gradient(135deg, #e8f0f8 0%, #eef3f9 60%, #f0f4fa 100%);
+  justify-content: center;
+  margin-top: 4px;
 }
-#half-top .fill  { top: 0; }
-#half-bottom .fill { bottom: 0; }
 
-/* Split: halves fly apart */
-#scissors-overlay.split #half-top    { transform: translateY(-105%); }
-#scissors-overlay.split #half-bottom { transform: translateY(105%);  }
+/* ── Hint ── */
+.login-hint {
+  margin-top: 16px;
+  font-size: 0.78rem;
+  color: var(--muted);
+  text-align: center;
+  line-height: 1.6;
+}
 
-/* Fade out whole overlay */
-#scissors-overlay.done {
-  transition: opacity 0.5s ease;
-  opacity: 0 !important;
+/* ── Link button ── */
+.link-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  color: #666;
+  cursor: pointer;
+  font-size: 0.85rem;
+  text-decoration: underline;
+  margin: 10px 0;
+}
+
+.link-btn:hover {
+  color: #333;
+}
+
+/* ── Demo accounts ── */
+.demo-accounts-label {
+  font-size: 0.72rem;
+  color: var(--muted);
+  font-weight: 500;
+  margin-bottom: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.demo-accounts-grid {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.demo-account-btn {
+  flex: 1;
+  min-width: 90px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: left;
+}
+
+.demo-account-btn:hover {
+  border-color: var(--accent);
+  background: var(--lavender);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.demo-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.demo-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.demo-role {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.2;
+}
+
+.demo-desc {
+  font-size: 0.68rem;
+  color: var(--muted);
+  line-height: 1.2;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   RESPONSIVE — Tablet (≤ 768px)
+   ═══════════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+  .login-page {
+    align-items: flex-start;
+    padding: 20px 16px 40px;
+  }
+
+  .login-container {
+    width: 100%;
+    min-height: unset;
+    border-radius: 20px;
+  }
+
+  /* Hide the sliding toggle panel on mobile */
+  .toggle-container {
+    display: none;
+  }
+
+  /* Both form panels take full width */
+  .sign-in,
+  .sign-up {
+    position: relative;
+    width: 100%;
+    left: 0;
+    opacity: 1;
+    z-index: 1;
+    transform: none !important;
+  }
+
+  /* Only show active panel */
+  .sign-up {
+    display: none;
+  }
+
+  .login-container.active .sign-in {
+    display: none;
+    transform: none !important;
+  }
+
+  .login-container.active .sign-up {
+    display: flex;
+    transform: none !important;
+    animation: none;
+  }
+
+  form {
+    padding: 32px 24px;
+    height: auto;
+    min-height: unset;
+  }
+
+  form h1 {
+    font-size: 1.7rem;
+  }
+
+  /* Show a simple text toggle instead of the sliding panel */
+  .mobile-toggle-hint {
+    display: block;
+    text-align: center;
+    margin-top: 16px;
+    font-size: 13px;
+    color: #666;
+  }
+
+  .mobile-toggle-hint button {
+    background: none;
+    border: none;
+    color: var(--indigo, #6366f1);
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 13px;
+    padding: 0;
+    margin: 0;
+    text-decoration: underline;
+  }
+
+  .demo-accounts-grid {
+    flex-direction: column;
+  }
+
+  .demo-account-btn {
+    min-width: unset;
+    width: 100%;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   RESPONSIVE — Small phones (≤ 480px)
+   ═══════════════════════════════════════════════════════════════ */
+@media (max-width: 480px) {
+  .login-page {
+    padding: 12px 12px 32px;
+    background-attachment: scroll;
+  }
+
+  .login-container {
+    border-radius: 16px;
+    box-shadow: 0 3px 20px rgba(0, 0, 0, 0.08);
+  }
+
+  form {
+    padding: 28px 20px;
+  }
+
+  form h1 {
+    font-size: 1.5rem;
+    margin-bottom: 6px;
+  }
+
+  form input {
+    padding: 14px 12px;
+    font-size: 14px;
+    border-radius: 8px;
+  }
+
+  form button {
+    width: 100%;
+    padding: 13px;
+    font-size: 14px;
+    margin-top: 12px;
+  }
+
+  .login-error {
+    font-size: 0.82rem;
+    padding: 10px 12px;
+  }
+
+  .login-reset-banner {
+    padding: 12px;
+    font-size: 0.8rem;
+  }
+
+  .demo-account-btn {
+    padding: 10px 12px;
+  }
+
+  .demo-role {
+    font-size: 0.82rem;
+  }
+
+  .demo-desc {
+    font-size: 0.72rem;
+  }
+
+  .toggle-panel h1 {
+    font-size: 1.6rem;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   RESPONSIVE — Very small phones (≤ 360px)
+   ═══════════════════════════════════════════════════════════════ */
+@media (max-width: 360px) {
+  form {
+    padding: 24px 16px;
+  }
+
+  form h1 {
+    font-size: 1.35rem;
+  }
+
+  form input {
+    padding: 12px 10px;
+  }
+
+  .login-social-icons button {
+    width: 36px;
+    height: 36px;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   FIX 2: Force reset / Set new password screen
+   The reset-form must override the global form { height:100%; align-items:center }
+   which was pushing content off-screen on mobile.
+   ═══════════════════════════════════════════════════════════════ */
+.reset-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-gradient);
+  background-attachment: fixed;
+  font-family: var(--font);
+  padding: 20px 16px;
+}
+
+.reset-card {
+  width: 100%;
+  max-width: 420px;
+  background: #fff;
+  border-radius: 24px;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.10);
+  padding: 40px 36px 36px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  overflow: visible;
+}
+
+.reset-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  background: #f0ecff;
+  color: rgb(63, 212, 175);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 20px;
+}
+
+.reset-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #111827;
+  text-align: center;
+  margin: 0 0 6px;
+}
+
+.reset-subtitle {
+  font-size: 13px;
+  color: #6b7280;
+  text-align: center;
+  margin: 0 0 28px;
+  line-height: 1.5;
+}
+
+/* FIX 2: Override global form styles that were hiding content */
+.reset-form {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 16px;
+  width: 100%;
+  background: #fff;
+  padding: 0 !important;
+  height: auto !important;        /* global form { height: 100% } was the culprit */
+  min-height: unset !important;
+  text-align: left;
+  align-items: stretch !important;       /* override form { align-items: center } */
+  justify-content: flex-start !important;
+}
+
+.reset-form .form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.reset-form label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.reset-form input {
+  background: #f3f4f6;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 14px;
+  color: #111827;
+  outline: none;
+  width: 100%;
+  margin: 0;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.reset-form input:focus {
+  border-color: rgb(63, 212, 175);
+  box-shadow: 0 0 0 3px rgba(63, 212, 175, 0.2);
+  background: #fff;
+}
+
+.reset-form .login-error {
+  margin: 0;
+}
+
+.reset-submit {
+  width: 100%;
+  padding: 13px;
+  background: linear-gradient(rgb(63, 212, 175), rgb(56, 180, 150));
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 4px;
+  transition: opacity 0.2s, transform 0.1s;
+}
+
+.reset-submit:hover:not(:disabled) {
+  opacity: 0.92;
+}
+
+.reset-submit:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.reset-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+@media (max-width: 480px) {
+  .reset-card {
+    padding: 32px 20px 28px;
+    border-radius: 18px;
+  }
+
+  .reset-title {
+    font-size: 1.3rem;
+  }
 }

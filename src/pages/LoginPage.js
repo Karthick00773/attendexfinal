@@ -1,99 +1,32 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import './LoginPage.css';
 
 export default function LoginPage() {
   const { login, resetPassword, forceReset } = useApp();
 
-  const [email, setEmail]               = useState('');
-  const [password, setPassword]         = useState('');
-  const [newPassword, setNewPassword]   = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [error, setError]               = useState('');
-  const [loading, setLoading]           = useState(false);
-  const [showPw, setShowPw]             = useState(false);
-  const [isActive, setIsActive]         = useState(false);
-  const [forgotEmail, setForgotEmail]   = useState('');
-  const [forgotError, setForgotError]   = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [showPw, setShowPw] = useState(false);
+  const [isActive, setIsActive] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotError, setForgotError] = useState('');
   const [forgotSuccess, setForgotSuccess] = useState('');
   const [forgotLoading, setForgotLoading] = useState(false);
-
-  const overlayRef = useRef(null);
-  const cutLineRef = useRef(null);
-  const riderRef   = useRef(null);
-  const halfTopRef = useRef(null);
-  const halfBotRef = useRef(null);
-
-  const runScissors = (loginFn) => {
-    const ov   = overlayRef.current;
-    const cut  = cutLineRef.current;
-    const icon = riderRef.current;
-    if (!ov || !cut || !icon) { loginFn(); return; }
-
-    // 1. Strip all classes and transitions synchronously
-    ov.classList.remove('split', 'done');
-    ov.style.transition   = 'none';
-    icon.style.transition = 'none';
-    cut.style.transition  = 'none';
-
-    // 2. Reset positions
-    icon.style.left    = '-70px';
-    icon.style.opacity = '0';
-    cut.style.opacity  = '0';
-
-    // 3. Show overlay invisibly, then force reflow, then make visible
-    ov.style.display = 'block';
-    ov.style.opacity = '0';
-    void ov.offsetWidth;         // commit display:block before opacity change
-    ov.style.opacity = '1';
-
-    // Step 1 — cut line fades in
-    setTimeout(() => {
-      cut.style.transition = 'opacity 0.2s ease';
-      cut.style.opacity    = '1';
-    }, 120);
-
-    // Step 2 — scissors slide across
-    setTimeout(() => {
-      icon.style.opacity = '1';
-      void icon.offsetWidth;     // commit opacity snap before transition
-      icon.style.transition = 'left 0.85s cubic-bezier(0.6,0,0.4,1)';
-      icon.style.left = (window.innerWidth + 80) + 'px';
-    }, 220);
-
-    // Step 3 — page splits open
-    setTimeout(() => {
-      cut.style.transition = 'opacity 0.1s ease';
-      cut.style.opacity    = '0';
-      ov.classList.add('split');
-    }, 700);
-
-    // Step 4 — overlay fades out
-    setTimeout(() => {
-      ov.classList.add('done');
-    }, 1650);
-
-    // Step 5 — navigate then clean up
-    setTimeout(() => {
-      loginFn();
-      ov.style.display = 'none';
-      ov.style.opacity = '0';
-      ov.classList.remove('split', 'done');
-    }, 2100);
-  };
 
   const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
     try {
-      await new Promise((resolve, reject) => {
-        login(email, password)
-          .then((result) => { runScissors(() => resolve(result)); })
-          .catch(reject);
-      });
+      await login(email, password);
     } catch (err) {
       setError(err.message || 'Invalid email or password. Please try again.');
+    } finally {
       setLoading(false);
     }
   };
@@ -142,15 +75,24 @@ export default function LoginPage() {
           <form onSubmit={handleResetPassword} className="reset-form">
             <div className="form-group">
               <label>New password</label>
-              <input type="password" placeholder="Minimum 8 characters"
-                value={newPassword} onChange={e => setNewPassword(e.target.value)}
-                required minLength={8}/>
+              <input
+                type="password"
+                placeholder="Minimum 8 characters"
+                value={newPassword}
+                onChange={e => setNewPassword(e.target.value)}
+                required
+                minLength={8}
+              />
             </div>
             <div className="form-group">
               <label>Confirm password</label>
-              <input type="password" placeholder="Re-enter your password"
-                value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)}
-                required/>
+              <input
+                type="password"
+                placeholder="Re-enter your password"
+                value={confirmPassword}
+                onChange={e => setConfirmPassword(e.target.value)}
+                required
+              />
             </div>
             {error && <div className="login-error">{error}</div>}
             <button type="submit" className="reset-submit" disabled={loading}>
@@ -164,38 +106,19 @@ export default function LoginPage() {
 
   return (
     <div className="login-page">
-
-      {/* NO style prop here — CSS controls display:none on load */}
-      <div id="scissors-overlay" ref={overlayRef}>
-        <div id="half-top"    ref={halfTopRef}><div className="fill" /></div>
-        <div id="half-bottom" ref={halfBotRef}><div className="fill" /></div>
-        <div id="cut-line"    ref={cutLineRef} />
-        <div id="scissors-rider" ref={riderRef}>✂️</div>
-      </div>
-
       <div className={`login-container${isActive ? ' active' : ''}`}>
 
         <div className="form-container sign-up">
           <form onSubmit={handleForgotPassword}>
             <h1>Forgot Password?</h1>
-            <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 16 }}>
+            <p style={{ fontSize:13, color:'var(--muted)', marginBottom:16 }}>
               Enter your email address and we'll send you a link to reset your password.
             </p>
             <input type="email" placeholder="Enter your email"
               value={forgotEmail} onChange={e => setForgotEmail(e.target.value)} required />
-            {forgotSuccess && (
-              <div className="login-success" style={{ width: '100%', marginTop: 6 }}>
-                {forgotSuccess}
-              </div>
-            )}
-            {forgotError && (
-              <div className="login-error" style={{ width: '100%', marginTop: 6 }}>
-                {forgotError}
-              </div>
-            )}
-            <button type="submit" disabled={forgotLoading}>
-              {forgotLoading ? 'Sending...' : 'Send Reset Link'}
-            </button>
+            {forgotSuccess && <div className="login-success" style={{ width:'100%', marginTop:6, background:'#dcfce7', borderColor:'#86efac', color:'#16a34a' }}>{forgotSuccess}</div>}
+            {forgotError && <div className="login-error" style={{ width:'100%', marginTop:6 }}>{forgotError}</div>}
+            <button type="submit" disabled={forgotLoading}>{forgotLoading ? 'Sending...' : 'Send Reset Link'}</button>
           </form>
         </div>
 
@@ -203,59 +126,35 @@ export default function LoginPage() {
           <form onSubmit={handleLogin}>
             <h1>Sign In</h1>
             <span>Use your email &amp; password to sign in</span>
-            <input
-              type="email"
-              placeholder="Email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              required
-              autoComplete="email"
-            />
-            <div className="pw-row">
+            <input type="email" placeholder="Email"
+              value={email} onChange={e => setEmail(e.target.value)} required autoComplete="email" />
+            <div className="input-icon-wrap" style={{ width:'100%' }}>
               <input
                 type={showPw ? 'text' : 'password'}
+                className="input-with-toggle"
                 placeholder="Password"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 required
                 autoComplete="current-password"
-                className="pw-input"
+                style={{ width:'100%', background:'#eee', border:'none', margin:'8px 0', padding:'10px 44px 10px 15px', fontSize:13, borderRadius:8, outline:'none' }}
               />
+              {/* FIX: onMouseDown preventDefault stops input losing focus on tap */}
               <button
                 type="button"
-                className="pw-eye"
-                tabIndex={-1}
-                aria-label={showPw ? 'Hide password' : 'Show password'}
-                onPointerDown={e => e.preventDefault()}
+                className="pw-toggle"
+                onMouseDown={e => e.preventDefault()}
                 onClick={() => setShowPw(s => !s)}
               >
                 {showPw
-                  ? <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
-                      <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
-                      <line x1="1" y1="1" x2="23" y2="23"/>
-                    </svg>
-                  : <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                      <circle cx="12" cy="12" r="3"/>
-                    </svg>
+                  ? <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                  : <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                 }
               </button>
             </div>
-
-            <button type="button" className="link-btn" onClick={() => setIsActive(true)}>
-              Forget Your Password?
-            </button>
-
-            {error && (
-              <div className="login-error" style={{ width: '100%', marginTop: 6 }}>
-                {error}
-              </div>
-            )}
-
-            <button type="submit" disabled={loading}>
-              {loading ? 'Signing in…' : 'Sign In'}
-            </button>
+            <button type="button" className="link-btn" onClick={() => setIsActive(true)}>Forget Your Password?</button>
+            {error && <div className="login-error" style={{ width:'100%', marginTop:6 }}>{error}</div>}
+            <button type="submit" disabled={loading}>{loading ? 'Signing in…' : 'Sign In'}</button>
           </form>
         </div>
 
