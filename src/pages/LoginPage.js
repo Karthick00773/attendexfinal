@@ -60,8 +60,8 @@ export default function LoginPage() {
 
   /* cleanup portal overlay on unmount just in case */
   useEffect(() => {
+    const ov = overlayRef.current;   // capture ref value at mount time
     return () => {
-      const ov = overlayRef.current;
       if (ov) ov.style.display = 'none';
     };
   }, []);
