@@ -225,7 +225,7 @@ export default function LoginPage() {
             <div className="toggle-panel toggle-left">
               <h1>Remember Your Password?</h1>
               <p>Go back to sign in with your credentials</p>
-              <button className="hidden" onClick={() => setIsActive(false)}>Sign In</button>
+              <button onClick={handleLogin} className="hidden" onClick={() => setIsActive(false)}>Sign In</button>
             </div>
             <div className="toggle-panel toggle-right">
               <h1>Forgot Your Password?</h1>
