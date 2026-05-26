@@ -1,7 +1,41 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import ReactDOM from 'react-dom';
 import { useApp } from '../context/AppContext';
-import * as api from '../utils/api';          // ← import api directly
+import * as api from '../utils/api';
 import './LoginPage.css';
+
+/* ─────────────────────────────────────────────────────────────
+   ScissorsPortal — renders the overlay at document.body level
+   so it is NEVER clipped by any parent and survives route
+   transitions until the new page has fully painted.
+───────────────────────────────────────────────────────────── */
+function ScissorsPortal({ overlayRef, cutTopRef, cutBotRef, scissorRef }) {
+  return ReactDOM.createPortal(
+    <div className="sc-overlay" ref={overlayRef} style={{ display: 'none' }}>
+      <div className="sc-top" ref={cutTopRef}>
+        <div className="sc-seam sc-seam-bot" />
+      </div>
+      <div className="sc-bot" ref={cutBotRef}>
+        <div className="sc-seam sc-seam-top" />
+      </div>
+      <div className="sc-rider" ref={scissorRef}>
+        <svg className="sc-blade-top" viewBox="0 0 60 18" width="60" height="18">
+          <ellipse cx="42" cy="9" rx="16" ry="5" fill="#c8dff0" stroke="#3f79af" strokeWidth="1.5"/>
+          <circle cx="12" cy="9" r="5" fill="#fff" stroke="#3f79af" strokeWidth="1.5"/>
+          <circle cx="12" cy="9" r="2" fill="#3f79af"/>
+          <path d="M16,7 Q28,2 42,4" fill="none" stroke="#3f79af" strokeWidth="1"/>
+        </svg>
+        <svg className="sc-blade-bot" viewBox="0 0 60 18" width="60" height="18">
+          <ellipse cx="42" cy="9" rx="16" ry="5" fill="#c8dff0" stroke="#3f79af" strokeWidth="1.5"/>
+          <circle cx="12" cy="9" r="5" fill="#fff" stroke="#3f79af" strokeWidth="1.5"/>
+          <circle cx="12" cy="9" r="2" fill="#3f79af"/>
+          <path d="M16,11 Q28,16 42,14" fill="none" stroke="#3f79af" strokeWidth="1"/>
+        </svg>
+      </div>
+    </div>,
+    document.body
+  );
+}
 
 export default function LoginPage() {
   const { resetPassword, forceReset, login } = useApp();
@@ -24,7 +58,15 @@ export default function LoginPage() {
   const cutBotRef  = useRef(null);
   const scissorRef = useRef(null);
 
-  /* ── scissors + cut animation ── */
+  /* cleanup portal overlay on unmount just in case */
+  useEffect(() => {
+    return () => {
+      const ov = overlayRef.current;
+      if (ov) ov.style.display = 'none';
+    };
+  }, []);
+
+  /* ── scissors animation ── */
   const runScissors = (onDone) => {
     const ov  = overlayRef.current;
     const top = cutTopRef.current;
@@ -40,7 +82,7 @@ export default function LoginPage() {
 
     requestAnimationFrame(() => requestAnimationFrame(() => {
 
-      // 1 — overlay fades in (navy halves cover screen)
+      // 1 — overlay fades in covering full screen
       ov.style.transition = 'opacity 0.2s ease';
       ov.style.opacity    = '1';
 
@@ -54,12 +96,12 @@ export default function LoginPage() {
         });
       }, 200);
 
-      // 3 — scissor reaches middle → blades open
+      // 3 — blades open at midpoint
       setTimeout(() => {
         sc.classList.add('sc-open');
       }, 550);
 
-      // 4 — cut: panels fly apart
+      // 4 — panels fly apart
       setTimeout(() => {
         top.style.transition = 'transform 0.6s cubic-bezier(0.76,0,0.24,1)';
         bot.style.transition = 'transform 0.6s cubic-bezier(0.76,0,0.24,1)';
@@ -67,45 +109,47 @@ export default function LoginPage() {
         bot.style.transform  = 'translateY(100%)';
       }, 820);
 
-      // 5 — NOW call onDone (triggers setCurrentUser → router navigates)
+      // 5 — navigate (overlay still covering screen — hides any flash)
       setTimeout(() => {
         onDone();
+        // overlay hides itself 400ms after navigation
+        // by then the new page has painted
+        setTimeout(() => {
+          if (ov) {
+            ov.style.display = 'none';
+            top.style.transform = '';
+            bot.style.transform = '';
+            sc.classList.remove('sc-open');
+          }
+        }, 400);
       }, 1300);
     }));
   };
 
-  /* ── LOGIN HANDLER — the key fix ──
-     1. Call api.auth.login directly to get tokens & user data
-     2. Store tokens in localStorage (same as AppContext does)
-     3. Play scissors animation
-     4. ONLY AFTER animation → call login() which sets currentUser
-        → triggers router redirect → component unmounts cleanly
-  ── */
+  /* ── login handler ── */
   const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
     try {
-      // Step 1: authenticate via API directly (does NOT set state yet)
+      // Step 1: hit the API directly — no state set yet
       const data = await api.auth.login(email, password);
 
-      // Step 2: store tokens (AppContext login() does this too, safe to do early)
+      // Step 2: store tokens immediately
       localStorage.setItem('attendx_token', data.access_token);
       if (data.refresh_token) localStorage.setItem('attendx_refresh', data.refresh_token);
 
-      // Step 3: if forceReset, skip animation and let AppContext handle it
+      // Step 3: forceReset — skip animation
       if (data.forceReset) {
-        await login(email, password); // will setForceReset(true)
+        await login(email, password);
         return;
       }
 
-      // Step 4: play scissors, THEN set state (triggers navigation)
+      // Step 4: scissors play, THEN login() sets state → router navigates
+      // Overlay (portal) stays on top during the route transition
+      // hiding the login-page flash completely
       runScissors(() => {
-        // This runs at t=1300ms — AFTER the cut is visible
-        // Setting currentUser here triggers ProtectedRoute redirect
         login(email, password).catch(() => {});
-        // Note: tokens already set so login() will succeed instantly from cache
-        // OR we can set user directly — but using login() keeps AppContext in sync
       });
 
     } catch (err) {
@@ -114,6 +158,7 @@ export default function LoginPage() {
     }
   };
 
+  /* ── reset password ── */
   const handleResetPassword = async (e) => {
     e.preventDefault();
     if (newPassword.length < 8)          { setError('Password must be at least 8 characters.'); return; }
@@ -124,6 +169,7 @@ export default function LoginPage() {
     finally     { setLoading(false); }
   };
 
+  /* ── forgot password ── */
   const handleForgotPassword = async (e) => {
     e.preventDefault();
     setForgotError(''); setForgotSuccess(''); setForgotLoading(true);
@@ -177,25 +223,13 @@ export default function LoginPage() {
   return (
     <div className="lf-page">
 
-      {/* ── Scissors + cut overlay ── */}
-      <div className="sc-overlay" ref={overlayRef} style={{ display:'none' }}>
-        <div className="sc-top" ref={cutTopRef}><div className="sc-seam sc-seam-bot" /></div>
-        <div className="sc-bot" ref={cutBotRef}><div className="sc-seam sc-seam-top" /></div>
-        <div className="sc-rider" ref={scissorRef}>
-          <svg className="sc-blade-top" viewBox="0 0 60 18" width="60" height="18">
-            <ellipse cx="42" cy="9" rx="16" ry="5" fill="#c8dff0" stroke="#3f79af" strokeWidth="1.5"/>
-            <circle cx="12" cy="9" r="5" fill="#fff" stroke="#3f79af" strokeWidth="1.5"/>
-            <circle cx="12" cy="9" r="2" fill="#3f79af"/>
-            <path d="M16,7 Q28,2 42,4" fill="none" stroke="#3f79af" strokeWidth="1"/>
-          </svg>
-          <svg className="sc-blade-bot" viewBox="0 0 60 18" width="60" height="18">
-            <ellipse cx="42" cy="9" rx="16" ry="5" fill="#c8dff0" stroke="#3f79af" strokeWidth="1.5"/>
-            <circle cx="12" cy="9" r="5" fill="#fff" stroke="#3f79af" strokeWidth="1.5"/>
-            <circle cx="12" cy="9" r="2" fill="#3f79af"/>
-            <path d="M16,11 Q28,16 42,14" fill="none" stroke="#3f79af" strokeWidth="1"/>
-          </svg>
-        </div>
-      </div>
+      {/* Portal renders at document.body — survives route transitions */}
+      <ScissorsPortal
+        overlayRef={overlayRef}
+        cutTopRef={cutTopRef}
+        cutBotRef={cutBotRef}
+        scissorRef={scissorRef}
+      />
 
       {/* ── floating badges ── */}
       <div className="lf-fbadge" style={{ top:'9%',  left:'1.5%', '--r':'-3deg',  animationDuration:'6s'   }}><span className="lf-badge-dot"/>GPS geo-fencing</div>
@@ -205,8 +239,6 @@ export default function LoginPage() {
       <div className="lf-fbadge" style={{ top:'58%', right:'1.5%','--r':'-3deg',  animationDuration:'8.5s', animationDelay:'.6s' }}><span className="lf-badge-dot"/>Mobile first · iOS &amp; Android</div>
 
       <div className="lf-center">
-
-        {/* ── logo ── */}
         <div className="lf-logo-wrap">
           <div className="lf-logo">AttendX</div>
           <div className="lf-logo-line">
@@ -219,7 +251,6 @@ export default function LoginPage() {
           </div>
         </div>
 
-        {/* ── card ── */}
         <div className="lf-card">
           <div className="lf-card-leather"/>
           <svg className="lf-stitch-svg" viewBox="0 0 400 500" preserveAspectRatio="none">
@@ -231,7 +262,6 @@ export default function LoginPage() {
           <div className="rivet rv-br"><div className="rivet-shine"/></div>
 
           <div className="lf-inner">
-
             {!showForgot ? (
               <>
                 <div className="lf-heading" style={{ animationDelay:'.3s' }}>Welcome<br/><span>Back.</span></div>
@@ -342,11 +372,9 @@ export default function LoginPage() {
                 </p>
               </>
             )}
-
           </div>
         </div>
 
-        {/* ── stats bar ── */}
         <div className="lf-stats">
           <div><div className="lf-sn">50+</div><div className="lf-sl">Companies</div></div>
           <div><div className="lf-sn">100</div><div className="lf-sl">Employees</div></div>
@@ -354,7 +382,6 @@ export default function LoginPage() {
           <div><div className="lf-sn">98%</div><div className="lf-sl">Accuracy</div></div>
         </div>
         <p className="lf-copy">© 2026 AttendX Inc. · Smart Attendance for Modern Teams · Privacy · Terms</p>
-
       </div>
     </div>
   );
