@@ -18,74 +18,78 @@ export default function LoginPage() {
   const [forgotSuccess, setForgotSuccess] = useState('');
   const [forgotLoading, setForgotLoading] = useState(false);
 
-  // Refs for scissors DOM nodes
-  const overlayRef  = useRef(null);
-  const cutLineRef  = useRef(null);
-  const riderRef    = useRef(null);
-  const halfTopRef  = useRef(null);
-  const halfBotRef  = useRef(null);
+  const overlayRef = useRef(null);
+  const cutLineRef = useRef(null);
+  const riderRef   = useRef(null);
+  const halfTopRef = useRef(null);
+  const halfBotRef = useRef(null);
 
-  /* ─────────────────────────────────────────
-     Scissors animation — runs AFTER login()
-     resolves successfully, then calls loginFn
-     which triggers your router navigation.
-  ───────────────────────────────────────── */
   const runScissors = (loginFn) => {
     const ov   = overlayRef.current;
     const cut  = cutLineRef.current;
     const icon = riderRef.current;
     if (!ov || !cut || !icon) { loginFn(); return; }
 
-    // Reset any previous run
+    // 1. Strip all classes and transitions synchronously
     ov.classList.remove('split', 'done');
+    ov.style.transition   = 'none';
     icon.style.transition = 'none';
-    icon.style.left = '-70px';
+    cut.style.transition  = 'none';
+
+    // 2. Reset positions
+    icon.style.left    = '-70px';
     icon.style.opacity = '0';
-    cut.style.opacity = '0';
+    cut.style.opacity  = '0';
 
-    ov.style.display  = 'block';
-    ov.style.opacity  = '1';
+    // 3. Show overlay invisibly, then force reflow, then make visible
+    ov.style.display = 'block';
+    ov.style.opacity = '0';
+    void ov.offsetWidth;         // commit display:block before opacity change
+    ov.style.opacity = '1';
 
-    // 1. Show dashed cut line
-    setTimeout(() => { cut.style.opacity = '1'; }, 100);
+    // Step 1 — cut line fades in
+    setTimeout(() => {
+      cut.style.transition = 'opacity 0.2s ease';
+      cut.style.opacity    = '1';
+    }, 120);
 
-    // 2. Scissors slide across
+    // Step 2 — scissors slide across
     setTimeout(() => {
       icon.style.opacity = '1';
-      void icon.offsetWidth; // force reflow before transition
+      void icon.offsetWidth;     // commit opacity snap before transition
       icon.style.transition = 'left 0.85s cubic-bezier(0.6,0,0.4,1)';
       icon.style.left = (window.innerWidth + 80) + 'px';
-    }, 200);
+    }, 220);
 
-    // 3. Page splits open
+    // Step 3 — page splits open
     setTimeout(() => {
-      cut.style.opacity = '0';
+      cut.style.transition = 'opacity 0.1s ease';
+      cut.style.opacity    = '0';
       ov.classList.add('split');
-    }, 680);
+    }, 700);
 
-    // 4. Fade overlay out
-    setTimeout(() => { ov.classList.add('done'); }, 1650);
+    // Step 4 — overlay fades out
+    setTimeout(() => {
+      ov.classList.add('done');
+    }, 1650);
 
-    // 5. Navigate — your router takes over here
-    setTimeout(() => { loginFn(); }, 2000);
+    // Step 5 — navigate then clean up
+    setTimeout(() => {
+      loginFn();
+      ov.style.display = 'none';
+      ov.style.opacity = '0';
+      ov.classList.remove('split', 'done');
+    }, 2100);
   };
 
-  /* ─────────────────────────────────────────
-     Login handler
-  ───────────────────────────────────────── */
   const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
     try {
-      // Authenticate first — get the resolved login action
-      // We pass a callback so scissors play THEN router navigates
       await new Promise((resolve, reject) => {
         login(email, password)
-          .then((result) => {
-            // Login succeeded — play scissors, then resolve (triggers navigation inside login())
-            runScissors(() => resolve(result));
-          })
+          .then((result) => { runScissors(() => resolve(result)); })
           .catch(reject);
       });
     } catch (err) {
@@ -94,9 +98,6 @@ export default function LoginPage() {
     }
   };
 
-  /* ─────────────────────────────────────────
-     Reset password handler (unchanged)
-  ───────────────────────────────────────── */
   const handleResetPassword = async (e) => {
     e.preventDefault();
     if (newPassword.length < 8) { setError('Password must be at least 8 characters.'); return; }
@@ -111,9 +112,6 @@ export default function LoginPage() {
     }
   };
 
-  /* ─────────────────────────────────────────
-     Forgot password handler (unchanged)
-  ───────────────────────────────────────── */
   const handleForgotPassword = async (e) => {
     e.preventDefault();
     setForgotError(''); setForgotSuccess(''); setForgotLoading(true);
@@ -129,9 +127,6 @@ export default function LoginPage() {
     }
   };
 
-  /* ─────────────────────────────────────────
-     Force reset screen (unchanged)
-  ───────────────────────────────────────── */
   if (forceReset) {
     return (
       <div className="reset-page">
@@ -167,22 +162,19 @@ export default function LoginPage() {
     );
   }
 
-  /* ─────────────────────────────────────────
-     Main login page
-  ───────────────────────────────────────── */
   return (
     <div className="login-page">
-      {/* ── Scissors overlay ── */}
-      <div id="scissors-overlay" ref={overlayRef} style={{ display: 'none' }}>
-        <div id="half-top" ref={halfTopRef}><div className="fill" /></div>
+
+      {/* NO style prop here — CSS controls display:none on load */}
+      <div id="scissors-overlay" ref={overlayRef}>
+        <div id="half-top"    ref={halfTopRef}><div className="fill" /></div>
         <div id="half-bottom" ref={halfBotRef}><div className="fill" /></div>
-        <div id="cut-line" ref={cutLineRef} />
+        <div id="cut-line"    ref={cutLineRef} />
         <div id="scissors-rider" ref={riderRef}>✂️</div>
       </div>
 
       <div className={`login-container${isActive ? ' active' : ''}`}>
 
-        {/* Forgot password panel */}
         <div className="form-container sign-up">
           <form onSubmit={handleForgotPassword}>
             <h1>Forgot Password?</h1>
@@ -207,7 +199,6 @@ export default function LoginPage() {
           </form>
         </div>
 
-        {/* Sign in panel */}
         <div className="form-container sign-in">
           <form onSubmit={handleLogin}>
             <h1>Sign In</h1>
@@ -220,7 +211,6 @@ export default function LoginPage() {
               required
               autoComplete="email"
             />
-
             <div className="pw-row">
               <input
                 type={showPw ? 'text' : 'password'}
@@ -269,7 +259,6 @@ export default function LoginPage() {
           </form>
         </div>
 
-        {/* Sliding toggle panel */}
         <div className="toggle-container">
           <div className="toggle">
             <div className="toggle-panel toggle-left">
