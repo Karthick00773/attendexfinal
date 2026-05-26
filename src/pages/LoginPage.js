@@ -82,8 +82,8 @@ export default function LoginPage() {
 
     requestAnimationFrame(() => requestAnimationFrame(() => {
 
-      // 1 — overlay fades in covering full screen
-      ov.style.transition = 'opacity 0.2s ease';
+      // 1 — overlay fully covers screen immediately
+      ov.style.transition = 'opacity 0.25s ease';
       ov.style.opacity    = '1';
 
       // 2 — scissor appears and slides across
@@ -101,28 +101,40 @@ export default function LoginPage() {
         sc.classList.add('sc-open');
       }, 550);
 
-      // 4 — panels fly apart
+      // 4 — tiny crack open (visual cut effect, panels still cover screen)
       setTimeout(() => {
-        top.style.transition = 'transform 0.6s cubic-bezier(0.76,0,0.24,1)';
-        bot.style.transition = 'transform 0.6s cubic-bezier(0.76,0,0.24,1)';
-        top.style.transform  = 'translateY(-100%)';
-        bot.style.transform  = 'translateY(100%)';
+        top.style.transition = 'transform 0.4s cubic-bezier(0.76,0,0.24,1)';
+        bot.style.transition = 'transform 0.4s cubic-bezier(0.76,0,0.24,1)';
+        top.style.transform  = 'translateY(-6px)';
+        bot.style.transform  = 'translateY(6px)';
       }, 820);
 
-      // 5 — navigate (overlay still covering screen — hides any flash)
+      // 5 — navigate WHILE panels still cover screen
+      //     dashboard renders behind the navy overlay
       setTimeout(() => {
         onDone();
-        // overlay hides itself 400ms after navigation
-        // by then the new page has painted
-        setTimeout(() => {
-          if (ov) {
-            ov.style.display = 'none';
-            top.style.transform = '';
-            bot.style.transform = '';
-            sc.classList.remove('sc-open');
-          }
-        }, 400);
-      }, 1300);
+      }, 1050);
+
+      // 6 — NOW fly panels apart — dashboard already painted behind them
+      setTimeout(() => {
+        top.style.transition = 'transform 0.55s cubic-bezier(0.76,0,0.24,1)';
+        bot.style.transition = 'transform 0.55s cubic-bezier(0.76,0,0.24,1)';
+        top.style.transform  = 'translateY(-100%)';
+        bot.style.transform  = 'translateY(100%)';
+      }, 1200);
+
+      // 7 — cleanup after fully off screen
+      setTimeout(() => {
+        if (ov) {
+          ov.style.display     = 'none';
+          ov.style.opacity     = '0';
+          top.style.transition = 'none';
+          bot.style.transition = 'none';
+          top.style.transform  = '';
+          bot.style.transform  = '';
+          sc.classList.remove('sc-open');
+        }
+      }, 1850);
     }));
   };
 
