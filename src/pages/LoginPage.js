@@ -1,9 +1,10 @@
 import React, { useState, useRef } from 'react';
 import { useApp } from '../context/AppContext';
+import * as api from '../utils/api';          // ← import api directly
 import './LoginPage.css';
 
 export default function LoginPage() {
-  const { login, resetPassword, forceReset } = useApp();
+  const { resetPassword, forceReset, login } = useApp();
 
   const [email,           setEmail]           = useState('');
   const [password,        setPassword]        = useState('');
@@ -40,8 +41,8 @@ export default function LoginPage() {
     requestAnimationFrame(() => requestAnimationFrame(() => {
 
       // 1 — overlay fades in (navy halves cover screen)
-      ov.style.transition  = 'opacity 0.2s ease';
-      ov.style.opacity     = '1';
+      ov.style.transition = 'opacity 0.2s ease';
+      ov.style.opacity    = '1';
 
       // 2 — scissor appears and slides across
       setTimeout(() => {
@@ -53,7 +54,7 @@ export default function LoginPage() {
         });
       }, 200);
 
-      // 3 — scissor reaches middle → blades open via CSS class
+      // 3 — scissor reaches middle → blades open
       setTimeout(() => {
         sc.classList.add('sc-open');
       }, 550);
@@ -66,27 +67,47 @@ export default function LoginPage() {
         bot.style.transform  = 'translateY(100%)';
       }, 820);
 
-      // 5 — cleanup + navigate
+      // 5 — NOW call onDone (triggers setCurrentUser → router navigates)
       setTimeout(() => {
         onDone();
-        ov.style.display    = 'none';
-        ov.style.opacity    = '0';
-        ov.style.visibility = 'hidden';
-        top.style.transform = '';
-        bot.style.transform = '';
-        sc.classList.remove('sc-open');
-      }, 1550);
+      }, 1300);
     }));
   };
 
-  /* ── handlers ── */
+  /* ── LOGIN HANDLER — the key fix ──
+     1. Call api.auth.login directly to get tokens & user data
+     2. Store tokens in localStorage (same as AppContext does)
+     3. Play scissors animation
+     4. ONLY AFTER animation → call login() which sets currentUser
+        → triggers router redirect → component unmounts cleanly
+  ── */
   const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
     try {
-      await login(email, password);
-      runScissors(() => {});
+      // Step 1: authenticate via API directly (does NOT set state yet)
+      const data = await api.auth.login(email, password);
+
+      // Step 2: store tokens (AppContext login() does this too, safe to do early)
+      localStorage.setItem('attendx_token', data.access_token);
+      if (data.refresh_token) localStorage.setItem('attendx_refresh', data.refresh_token);
+
+      // Step 3: if forceReset, skip animation and let AppContext handle it
+      if (data.forceReset) {
+        await login(email, password); // will setForceReset(true)
+        return;
+      }
+
+      // Step 4: play scissors, THEN set state (triggers navigation)
+      runScissors(() => {
+        // This runs at t=1300ms — AFTER the cut is visible
+        // Setting currentUser here triggers ProtectedRoute redirect
+        login(email, password).catch(() => {});
+        // Note: tokens already set so login() will succeed instantly from cache
+        // OR we can set user directly — but using login() keeps AppContext in sync
+      });
+
     } catch (err) {
       setError(err.message || 'Invalid email or password. Please try again.');
       setLoading(false);
@@ -95,8 +116,8 @@ export default function LoginPage() {
 
   const handleResetPassword = async (e) => {
     e.preventDefault();
-    if (newPassword.length < 8)            { setError('Password must be at least 8 characters.'); return; }
-    if (newPassword !== confirmPassword)   { setError('Passwords do not match.'); return; }
+    if (newPassword.length < 8)          { setError('Password must be at least 8 characters.'); return; }
+    if (newPassword !== confirmPassword) { setError('Passwords do not match.'); return; }
     setLoading(true); setError('');
     try   { await resetPassword(newPassword); }
     catch (err) { setError(err.message || 'Password reset failed. Please try again.'); }
@@ -156,8 +177,7 @@ export default function LoginPage() {
   return (
     <div className="lf-page">
 
-      {/* ── Scissors + cut overlay ──
-          position:fixed in CSS so it escapes every clipping ancestor */}
+      {/* ── Scissors + cut overlay ── */}
       <div className="sc-overlay" ref={overlayRef} style={{ display:'none' }}>
         <div className="sc-top" ref={cutTopRef}><div className="sc-seam sc-seam-bot" /></div>
         <div className="sc-bot" ref={cutBotRef}><div className="sc-seam sc-seam-top" /></div>
@@ -213,13 +233,11 @@ export default function LoginPage() {
           <div className="lf-inner">
 
             {!showForgot ? (
-              /* ── sign-in form ── */
               <>
                 <div className="lf-heading" style={{ animationDelay:'.3s' }}>Welcome<br/><span>Back.</span></div>
                 <p className="lf-sub" style={{ animationDelay:'.4s' }}>Sign in to your AttendX portal</p>
 
                 <form onSubmit={handleLogin}>
-                  {/* email */}
                   <div className="lf-field" style={{ animationDelay:'.5s', marginBottom:'1rem' }}>
                     <label className="lf-label">Employee ID / Email</label>
                     <div className="lf-input-wrap">
@@ -234,7 +252,6 @@ export default function LoginPage() {
                     </div>
                   </div>
 
-                  {/* password */}
                   <div className="lf-field" style={{ animationDelay:'.6s', marginBottom:'.4rem' }}>
                     <div className="lf-row">
                       <label className="lf-label" style={{ margin:0 }}>Password</label>
@@ -282,11 +299,8 @@ export default function LoginPage() {
                     </button>
                   </div>
                 </form>
-
-                
               </>
             ) : (
-              /* ── forgot password form ── */
               <>
                 <div className="lf-heading" style={{ animationDelay:'.2s' }}>Reset<br/><span>Password.</span></div>
                 <p className="lf-sub" style={{ animationDelay:'.3s' }}>Enter your email — we'll send a reset link.</p>
