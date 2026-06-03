@@ -174,8 +174,6 @@ function AppRoutes() {
         } />
 
         {/* Protected routes */}
-        <Route path="/"       element={<ProtectedLayout><Landing /></ProtectedLayout>} />
-        <Route path="/login"  element={<ProtectedLayout><LoginPage /></ProtectedLayout>} />
         <Route path="/home"       element={<ProtectedLayout><HomePage /></ProtectedLayout>} />
         <Route path="/attendance" element={<ProtectedLayout><AttendancePage /></ProtectedLayout>} />
         <Route path="/attendance/manage" element={<ProtectedLayout><AdminGuard><AdminAttendancePage /></AdminGuard></ProtectedLayout>} />
