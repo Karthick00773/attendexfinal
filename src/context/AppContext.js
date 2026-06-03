@@ -5,8 +5,14 @@ import { uploadPhotoToImageKit } from '../utils/api';
 const AppContext = createContext(null);
 
 export function AppProvider({ children }) {
-  const [currentUser, setCurrentUser]   = useState(null);
-  const [authLoading, setAuthLoading]   = useState(true);
+  const [currentUser, setCurrentUser]   = useState({
+    id: 1,
+    name: 'Admin Demo',
+    email: 'admin@demo.com',
+    role: 'admin',
+    avatar_initials: 'AD'
+  });
+  const [authLoading, setAuthLoading]   = useState(false);
   const [forceReset, setForceReset]     = useState(false);
 
   const [todayRecord, setTodayRecord]             = useState(null);
@@ -48,18 +54,10 @@ export function AppProvider({ children }) {
 
   // ── Restore session on mount ──────────────────────────────────
   useEffect(() => {
-    const token = localStorage.getItem('attendx_token');
-    if (!token) { setAuthLoading(false); return; }
-    api.auth.me()
-      .then(data => {
-        setCurrentUser(data.user);
-        bootstrapUserData(data.user);
-      })
-      .catch(() => {
-        localStorage.removeItem('attendx_token');
-        localStorage.removeItem('attendx_refresh');
-      })
-      .finally(() => setAuthLoading(false));
+    // Demo mode: keeping the hardcoded dummy admin user
+    // No backend auth needed for demo
+    localStorage.setItem('attendx_mock_user_id', '1');
+    bootstrapUserData(currentUserRef.current);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Auth ──────────────────────────────────────────────────────

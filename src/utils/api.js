@@ -22,8 +22,14 @@ async function request(method, path, body) {
   const opts = { method, headers };
   if (body !== undefined) opts.body = JSON.stringify(body);
 
-  const res  = await fetch(`${BASE}${path}`, opts);
-  const data = await res.json().catch(() => ({}));
+  let res, data;
+  try {
+    res = await fetch(`${BASE}${path}`, opts);
+    data = await res.json().catch(() => ({}));
+  } catch (err) {
+    // Catch network errors (e.g. backend offline) gracefully and return empty data
+    return {};
+  }
 
   // ── 401 — token expired or unauthorized ──────────────────
   if (res.status === 401) {
