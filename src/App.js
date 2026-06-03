@@ -36,8 +36,7 @@ function LoadingScreen() {
 
 function ProtectedLayout({ children }) {
   const { currentUser, authLoading } = useApp();
-  if (authLoading) return <LoadingScreen />;
-  if (!currentUser) return <Navigate to="/login" replace />;
+  if (authLoading || !currentUser) return <LoadingScreen />;
   return (
     <div className="app-layout">
       <Sidebar />
