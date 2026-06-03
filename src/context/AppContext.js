@@ -5,27 +5,27 @@ import { uploadPhotoToImageKit } from '../utils/api';
 const AppContext = createContext(null);
 
 export function AppProvider({ children }) {
-  const [currentUser, setCurrentUser]   = useState({
+  const [currentUser, setCurrentUser] = useState({
     id: 1,
     name: 'Admin Demo',
     email: 'admin@demo.com',
     role: 'admin',
     avatar_initials: 'AD'
   });
-  const [authLoading, setAuthLoading]   = useState(false);
-  const [forceReset, setForceReset]     = useState(false);
+  const [authLoading, setAuthLoading] = useState(false);
+  const [forceReset, setForceReset] = useState(false);
 
-  const [todayRecord, setTodayRecord]             = useState(null);
+  const [todayRecord, setTodayRecord] = useState(null);
   const [attendanceHistory, setAttendanceHistory] = useState([]);
-  const [monthlySummary, setMonthlySummary]       = useState(null);
+  const [monthlySummary, setMonthlySummary] = useState(null);
   const [allEmployeesToday, setAllEmployeesToday] = useState([]);
-  const [dashboardStats, setDashboardStats]       = useState(null);
-  const [adminOverview, setAdminOverview]         = useState(null);
-  const [messages, setMessages]                   = useState([]);
-  const [leaveList, setLeaveList]                 = useState([]);
-  const [notifList, setNotifList]                 = useState([]);
-  const [unreadCount, setUnreadCount]             = useState(0);
-  const [taskList, setTaskList]                   = useState([]);
+  const [dashboardStats, setDashboardStats] = useState(null);
+  const [adminOverview, setAdminOverview] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [leaveList, setLeaveList] = useState([]);
+  const [notifList, setNotifList] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [taskList, setTaskList] = useState([]);
 
   // Ref so callbacks can always read the latest currentUser
   // without needing it as a useCallback dependency (which would cause re-renders).
@@ -37,16 +37,16 @@ export function AppProvider({ children }) {
     if (!user) return;
     const isAdminOrCeo = ['admin', 'ceo'].includes(user.role);
     const promises = [
-      api.dashboard.me().then(data => setDashboardStats(data)).catch(() => {}),
+      api.dashboard.me().then(data => setDashboardStats(data)).catch(() => { }),
       api.notifications.list().then(data => {
         setNotifList(data.notifications || []);
         setUnreadCount(data.unread_count || 0);
-      }).catch(() => {}),
+      }).catch(() => { }),
     ];
     if (isAdminOrCeo) {
       promises.push(
-        api.dashboard.overview().then(data => setAdminOverview(data)).catch(() => {}),
-        api.attendance.getAllToday().then(data => setAllEmployeesToday(data.employees || [])).catch(() => {}),
+        api.dashboard.overview().then(data => setAdminOverview(data)).catch(() => { }),
+        api.attendance.getAllToday().then(data => setAllEmployeesToday(data.employees || [])).catch(() => { }),
       );
     }
     await Promise.all(promises);
@@ -56,8 +56,6 @@ export function AppProvider({ children }) {
   useEffect(() => {
     // Demo mode: keeping the hardcoded dummy admin user
     // No backend auth needed for demo
-    localStorage.setItem('attendx_mock_user_id', '1');
-    bootstrapUserData(currentUserRef.current);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Auth ──────────────────────────────────────────────────────
@@ -77,7 +75,7 @@ export function AppProvider({ children }) {
   }, [bootstrapUserData]);
 
   const logout = useCallback(async () => {
-    try { await api.auth.logout(); } catch (_) {}
+    try { await api.auth.logout(); } catch (_) { }
     localStorage.removeItem('attendx_token');
     localStorage.removeItem('attendx_refresh');
     setCurrentUser(null);
@@ -253,7 +251,7 @@ export function AppProvider({ children }) {
   }, []);
 
   const uploadProfilePhoto = useCallback(async (photoFile) => {
-    const url  = await uploadPhotoToImageKit(photoFile, 'profile');
+    const url = await uploadPhotoToImageKit(photoFile, 'profile');
     const data = await api.users.uploadProfilePhoto(url);
     if (data.user) setCurrentUser(prev => ({ ...prev, ...data.user }));
     return data;
