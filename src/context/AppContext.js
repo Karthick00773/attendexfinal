@@ -59,8 +59,8 @@ export function AppProvider({ children }) {
       total_leaves: 0,
     };
     setCurrentUser(demoUser);
-    bootstrapUserData(demoUser);
-    setAuthLoading(false);
+    setAuthLoading(false); // set false BEFORE bootstrap so routes never see null+false
+    bootstrapUserData(demoUser).catch(() => {}); // fire and forget
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Auth ──────────────────────────────────────────────────────
