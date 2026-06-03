@@ -38,20 +38,18 @@ function ScissorsPortal({ overlayRef, cutTopRef, cutBotRef, scissorRef }) {
 }
 
 export default function LoginPage() {
-  const { resetPassword, forceReset, login } = useApp();
+  const { login } = useApp();
 
-  const [email,           setEmail]           = useState('');
-  const [password,        setPassword]        = useState('');
-  const [newPassword,     setNewPassword]     = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [error,           setError]           = useState('');
-  const [loading,         setLoading]         = useState(false);
-  const [showPw,          setShowPw]          = useState(false);
-  const [showForgot,      setShowForgot]      = useState(false);
-  const [forgotEmail,     setForgotEmail]     = useState('');
-  const [forgotError,     setForgotError]     = useState('');
-  const [forgotSuccess,   setForgotSuccess]   = useState('');
-  const [forgotLoading,   setForgotLoading]   = useState(false);
+  const [email,         setEmail]         = useState('');
+  const [password,      setPassword]      = useState('');
+  const [error,         setError]         = useState('');
+  const [loading,       setLoading]       = useState(false);
+  const [showPw,        setShowPw]        = useState(false);
+  const [showForgot,    setShowForgot]    = useState(false);
+  const [forgotEmail,   setForgotEmail]   = useState('');
+  const [forgotError,   setForgotError]   = useState('');
+  const [forgotSuccess, setForgotSuccess] = useState('');
+  const [forgotLoading, setForgotLoading] = useState(false);
 
   const overlayRef = useRef(null);
   const cutTopRef  = useRef(null);
@@ -60,7 +58,7 @@ export default function LoginPage() {
 
   /* cleanup portal overlay on unmount just in case */
   useEffect(() => {
-    const ov = overlayRef.current;   // capture ref value at mount time
+    const ov = overlayRef.current;
     return () => {
       if (ov) ov.style.display = 'none';
     };
@@ -151,13 +149,7 @@ export default function LoginPage() {
       localStorage.setItem('attendx_token', data.access_token);
       if (data.refresh_token) localStorage.setItem('attendx_refresh', data.refresh_token);
 
-      // Step 3: forceReset — skip animation
-      if (data.forceReset) {
-        await login(email, password);
-        return;
-      }
-
-      // Step 4: scissors play, THEN login() sets state → router navigates
+      // Step 3: scissors play, THEN login() sets state → router navigates
       // Overlay (portal) stays on top during the route transition
       // hiding the login-page flash completely
       runScissors(() => {
@@ -168,17 +160,6 @@ export default function LoginPage() {
       setError(err.message || 'Invalid email or password. Please try again.');
       setLoading(false);
     }
-  };
-
-  /* ── reset password ── */
-  const handleResetPassword = async (e) => {
-    e.preventDefault();
-    if (newPassword.length < 8)          { setError('Password must be at least 8 characters.'); return; }
-    if (newPassword !== confirmPassword) { setError('Passwords do not match.'); return; }
-    setLoading(true); setError('');
-    try   { await resetPassword(newPassword); }
-    catch (err) { setError(err.message || 'Password reset failed. Please try again.'); }
-    finally     { setLoading(false); }
   };
 
   /* ── forgot password ── */
@@ -196,40 +177,6 @@ export default function LoginPage() {
       setForgotLoading(false);
     }
   };
-
-  /* ── force-reset screen ── */
-  if (forceReset) {
-    return (
-      <div className="reset-page">
-        <div className="reset-card">
-          <div className="reset-icon">
-            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-            </svg>
-          </div>
-          <h2 className="reset-title">Set new password</h2>
-          <p className="reset-subtitle">This is your first login. Please set a secure password to continue.</p>
-          <form onSubmit={handleResetPassword} className="reset-form">
-            <div className="form-group">
-              <label>New password</label>
-              <input type="password" placeholder="Minimum 8 characters"
-                value={newPassword} onChange={e => setNewPassword(e.target.value)} required minLength={8}/>
-            </div>
-            <div className="form-group">
-              <label>Confirm password</label>
-              <input type="password" placeholder="Re-enter your password"
-                value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required/>
-            </div>
-            {error && <div className="login-error">{error}</div>}
-            <button type="submit" className="reset-submit" disabled={loading}>
-              {loading ? 'Saving…' : 'Set password & continue'}
-            </button>
-          </form>
-        </div>
-      </div>
-    );
-  }
 
   /* ── main login page ── */
   return (
