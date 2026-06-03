@@ -46,21 +46,20 @@ export function AppProvider({ children }) {
     await Promise.all(promises);
   }, []); // stable — no deps
 
-  // ── DEMO MODE: Skip auth, boot directly as CEO ───────────────
+  // ── Restore session on mount ──────────────────────────────────
   useEffect(() => {
-    const demoUser = {
-      id: 'demo-ceo',
-      name: 'Demo CEO',
-      email: 'ceo@demo.com',
-      role: 'ceo',
-      designation: 'Chief Executive Officer',
-      avatar_initials: 'DC',
-      paid_leaves_total: 0,
-      total_leaves: 0,
-    };
-    setCurrentUser(demoUser);
-    setAuthLoading(false); // set false BEFORE bootstrap so routes never see null+false
-    bootstrapUserData(demoUser).catch(() => {}); // fire and forget
+    const token = localStorage.getItem('attendx_token');
+    if (!token) { setAuthLoading(false); return; }
+    api.auth.me()
+      .then(data => {
+        setCurrentUser(data.user);
+        bootstrapUserData(data.user);
+      })
+      .catch(() => {
+        localStorage.removeItem('attendx_token');
+        localStorage.removeItem('attendx_refresh');
+      })
+      .finally(() => setAuthLoading(false));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Auth ──────────────────────────────────────────────────────
@@ -349,3 +348,4 @@ function getCoords() {
     );
   });
 }
+
