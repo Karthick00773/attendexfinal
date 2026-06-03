@@ -34,12 +34,6 @@ function LoadingScreen() {
   );
 }
 
-function AdminGuard({ children }) {
-  const { currentUser } = useApp();
-  if (!currentUser || !['admin','ceo'].includes(currentUser.role)) return <Navigate to="/home" replace />;
-  return children;
-}
-
 function ProtectedLayout({ children }) {
   const { currentUser, authLoading } = useApp();
   if (authLoading) return <LoadingScreen />;
