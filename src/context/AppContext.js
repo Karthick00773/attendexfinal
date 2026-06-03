@@ -12,7 +12,7 @@ export function AppProvider({ children }) {
     role: 'admin',
     avatar_initials: 'AD'
   });
-  const [authLoading, setAuthLoading] = useState(false);
+  const [authLoading] = useState(false);
   const [forceReset, setForceReset] = useState(false);
 
   const [todayRecord, setTodayRecord] = useState(null);
