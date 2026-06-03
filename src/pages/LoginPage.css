@@ -1,11 +1,29 @@
-/* ══════════════════════════════════════════════════════════════
-   ATTENDX — SET NEW PASSWORD (Force-Reset) SCREEN
-   Matches the login page's card, typography, form-field,
-   and button system exactly.
-══════════════════════════════════════════════════════════════ */
+﻿/* ═══════════════════════════════════════════════════════════════
+   ATTENDX LOGIN PAGE — base design (from AttendX HTML)
+   + page-cut transition on successful login
+   ═══════════════════════════════════════════════════════════════ */
 
-/* ── Page shell — reuse lf-page background & centering ── */
-.reset-page {
+/* ── Keyframes ── */
+@keyframes floatBadge   { 0%,100%{transform:translateY(0) rotate(var(--r,0deg))} 50%{transform:translateY(-11px) rotate(var(--r,0deg))} }
+@keyframes brandGlow    { 0%,100%{box-shadow:0 4px 24px rgba(63,121,175,.18)} 50%{box-shadow:0 8px 40px rgba(63,121,175,.38)} }
+@keyframes sheenSweep   { 0%{left:-80px;opacity:0} 10%{opacity:1} 80%{opacity:.5} 100%{left:calc(100% + 80px);opacity:0} }
+@keyframes stitchDraw   { from{stroke-dashoffset:1600} to{stroke-dashoffset:0} }
+@keyframes logoReveal   { from{opacity:0;letter-spacing:10px} to{opacity:1;letter-spacing:3px} }
+@keyframes fadeSlide    { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:none} }
+@keyframes rivetSheen   { 0%,100%{opacity:0} 40%{opacity:1} }
+@keyframes pulseRing    { 0%{transform:scale(1);opacity:.6} 100%{transform:scale(2.4);opacity:0} }
+@keyframes embossFlicker{ 0%,100%{text-shadow:0 1px 2px rgba(63,121,175,.18)} 50%{text-shadow:0 2px 8px rgba(63,121,175,.32)} }
+
+/* ── Page-cut keyframes ──
+   Top half slides UP, bottom half slides DOWN, revealing the dashboard beneath.
+   The overlay itself is fixed so it covers the entire viewport. */
+@keyframes cutTop    { 0%{transform:translateY(0)} 100%{transform:translateY(-51%)} }
+@keyframes cutBottom { 0%{transform:translateY(0)} 100%{transform:translateY(51%)} }
+
+/* ══════════════════════════════════
+   PAGE SHELL
+══════════════════════════════════ */
+.lf-page {
   position: relative;
   min-height: 100vh;
   overflow: hidden;
@@ -17,77 +35,219 @@
   font-family: 'Inter', system-ui, sans-serif;
 }
 
-/* ── Card — mirrors .lf-card exactly ── */
-.reset-card {
+#lfc {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── Grain overlay ── */
+.lf-grain {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: .35;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E");
+}
+
+/* ── Floating badges ── */
+.lf-fbadge {
+  position: absolute;
+  z-index: 4;
+  background: rgba(255,255,255,0.88);
+  border: 1px solid rgba(63,121,175,0.2);
+  border-radius: 4px;
+  padding: 6px 13px;
+  font-size: 11px;
+  color: #2a5a8c;
+  font-weight: 600;
+  white-space: nowrap;
+  letter-spacing: .6px;
+  animation: floatBadge linear infinite;
+  font-family: 'Inter', system-ui, sans-serif;
+}
+.lf-badge-dot {
+  display: inline-block;
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: #3f79af;
+  vertical-align: middle;
+  margin-right: 6px;
+  opacity: .6;
+}
+
+/* ── Center column ── */
+.lf-center {
   position: relative;
-  background: #FFFFFF;
-  border: 1px solid rgba(63, 121, 175, .18);
-  border-radius: 3px;
-  padding: 2rem 1.8rem 1.6rem;
+  z-index: 10;
   width: 100%;
   max-width: 400px;
-  overflow: hidden;
-  animation: fadeSlide .8s .15s ease both;
-
-  /* subtle leather-grid texture */
-  background-image:
-    repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(63,121,175,.012) 3px, rgba(63,121,175,.012) 4px),
-    repeating-linear-gradient(90deg, transparent, transparent 3px, rgba(63,121,175,.008) 3px, rgba(63,121,175,.008) 4px);
 }
 
-/* ── Icon badge above heading ── */
-.reset-icon {
+/* ══════════════════════════════════
+   LOGO
+══════════════════════════════════ */
+.lf-logo-wrap {
+  text-align: center;
+  margin-bottom: 1.6rem;
+  animation: fadeSlide .7s ease both;
+}
+.lf-logo {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: #1a3d61;
+  animation: logoReveal .9s ease both, embossFlicker 5s ease-in-out 1s infinite;
+}
+.lf-logo-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 5px;
+}
+.lf-logo-rule {
+  flex: 1;
+  max-width: 50px;
+  height: 1px;
+  background: rgba(63,121,175,.25);
+}
+.lf-logo-sub {
+  font-size: 9px;
+  letter-spacing: 3.5px;
+  text-transform: uppercase;
+  color: #5a7fa0;
+  font-family: 'Inter', system-ui, sans-serif;
+}
+.lf-est {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  background: rgba(63, 121, 175, .10);
-  border: 1px solid rgba(63, 121, 175, .22);
-  color: #3f79af;
-  margin-bottom: 1rem;
-  animation: fadeSlide .6s .25s ease both;
+  gap: 8px;
+  color: #8aabca;
+  font-size: 10px;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  font-family: 'Inter', system-ui, sans-serif;
+  margin-top: 10px;
+}
+.lf-est-line {
+  width: 24px;
+  height: 1px;
+  background: rgba(63,121,175,.25);
 }
 
-/* ── Heading — mirrors .lf-heading ── */
-.reset-title {
+/* ══════════════════════════════════
+   CARD
+══════════════════════════════════ */
+.lf-card {
+  position: relative;
+  background: #FFFFFF;
+  border: 1px solid rgba(63,121,175,.18);
+  border-radius: 3px;
+  padding: 2rem 1.8rem 1.6rem;
+  overflow: hidden;
+  animation: fadeSlide .8s .15s ease both;
+}
+.lf-card-leather {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(63,121,175,.012) 3px,rgba(63,121,175,.012) 4px),
+    repeating-linear-gradient(90deg,transparent,transparent 3px,rgba(63,121,175,.008) 3px,rgba(63,121,175,.008) 4px);
+}
+
+/* ── Stitch border ── */
+.lf-stitch-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+  overflow: visible;
+}
+.lf-stitch-path {
+  fill: none;
+  stroke: #3f79af;
+  stroke-width: 1.2;
+  stroke-dasharray: 7 5;
+  stroke-linecap: round;
+  stroke-dashoffset: 1600;
+  animation: stitchDraw 2.4s cubic-bezier(.4,0,.2,1) .6s forwards;
+  opacity: .35;
+}
+
+/* ── Rivets ── */
+.rivet {
+  position: absolute;
+  width: 11px; height: 11px;
+  border-radius: 50%;
+  z-index: 2;
+  background: radial-gradient(circle at 38% 35%, #91c8f0, #3f79af 60%, #2a5a8c);
+  border: 1px solid rgba(42,90,140,.35);
+  overflow: hidden;
+}
+.rivet-shine {
+  position: absolute;
+  top: 1px; left: 1px;
+  width: 5px; height: 3px;
+  background: rgba(200,230,255,.6);
+  border-radius: 50%;
+  animation: rivetSheen 4s ease-in-out 2s infinite;
+}
+.rv-tl { top: 9px; left: 9px; }
+.rv-tr { top: 9px; right: 9px; }
+.rv-bl { bottom: 9px; left: 9px; }
+.rv-br { bottom: 9px; right: 9px; }
+
+.lf-inner { position: relative; z-index: 5; }
+
+/* ══════════════════════════════════
+   TYPOGRAPHY INSIDE CARD
+══════════════════════════════════ */
+.lf-heading {
   font-family: 'Inter', system-ui, sans-serif;
   font-size: 25px;
   font-weight: 700;
   color: #0d2137;
   letter-spacing: -.5px;
   line-height: 1.05;
-  margin: 0 0 4px;
+  margin-bottom: 4px;
   animation: fadeSlide .6s .3s ease both;
 }
-
-/* ── Subtitle — mirrors .lf-sub ── */
-.reset-subtitle {
+.lf-heading span { color: #3f79af; }
+.lf-sub {
   font-size: 11px;
   color: #5a7fa0;
   letter-spacing: 1px;
   font-family: 'Inter', system-ui, sans-serif;
-  margin: 0 0 1.6rem;
-  line-height: 1.6;
+  margin-bottom: 1.6rem;
   animation: fadeSlide .6s .4s ease both;
 }
 
-/* ── Form wrapper — no default browser box ── */
-.reset-form {
-  display: block;
+/* ══════════════════════════════════
+   FORM FIELDS
+══════════════════════════════════ */
+
+/* Reset browser-default form styles scoped to our card */
+.lf-inner form {
   background: transparent;
   padding: 0;
+  height: auto;
+  display: block;
+  text-align: left;
 }
 
-/* ── Field group — mirrors .lf-field ── */
-.form-group {
-  margin-bottom: 1rem;
-  animation: fadeSlide .5s ease both;
-}
-
-/* ── Label — mirrors .lf-label ── */
-.form-group label {
+.lf-field { animation: fadeSlide .5s ease both; }
+.lf-label {
   display: block;
   font-size: 9px;
   font-weight: 700;
@@ -97,40 +257,87 @@
   margin-bottom: 5px;
   font-family: 'Inter', system-ui, sans-serif;
 }
-
-/* ── Input — mirrors .lf-inp (no left-icon padding variant) ── */
-.form-group input {
+.lf-input-wrap { position: relative; }
+.lf-icon {
+  position: absolute;
+  left: 11px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #9bbdd4;
+  display: flex;
+  pointer-events: none;
+}
+.lf-inp {
   width: 100%;
-  padding: 11px 11px 11px 11px;
+  padding: 11px 11px 11px 36px;
   background: #F5F9FE;
   border: none;
-  border-bottom: 1px solid rgba(63, 121, 175, .2);
+  border-bottom: 1px solid rgba(63,121,175,.2);
   border-radius: 2px;
   font-size: 13px;
   color: #0d2137;
   outline: none;
   font-family: 'Inter', system-ui, sans-serif;
-  box-shadow: inset 0 2px 6px rgba(63, 121, 175, .06);
+  box-shadow: inset 0 2px 6px rgba(63,121,175,.06);
   transition: border-color .3s, box-shadow .3s;
   box-sizing: border-box;
+  margin: 0;
 }
-
-.form-group input::placeholder {
-  color: rgba(63, 121, 175, .45);
-}
-
-.form-group input:focus {
+.lf-inp::placeholder { color: rgba(63,121,175,.45); }
+.lf-inp:focus {
   border-bottom-color: #3f79af;
-  box-shadow: inset 0 2px 6px rgba(63, 121, 175, .10), 0 1px 0 rgba(63, 121, 175, .15);
+  box-shadow: inset 0 2px 6px rgba(63,121,175,.1), 0 1px 0 rgba(63,121,175,.15);
 }
+.lf-eye {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #9bbdd4;
+  display: flex;
+  transition: color .2s;
+  padding: 0;
+  margin: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+.lf-eye:hover { color: #3f79af; }
+.lf-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 5px;
+}
+.lf-link {
+  font-size: 10px;
+  color: #5a7fa0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  letter-spacing: .5px;
+  font-family: 'Inter', system-ui, sans-serif;
+  transition: color .2s;
+  padding: 0;
+}
+.lf-link:hover { color: #1a3d61; }
 
-/* ── Submit button — mirrors .lf-btn ── */
-.reset-submit {
-  width: 100%;
+/* ══════════════════════════════════
+   SUBMIT BUTTON
+══════════════════════════════════ */
+.lf-btn-wrap {
+  position: relative;
   margin-top: .5rem;
+  border-radius: 2px;
+  overflow: hidden;
+  animation: fadeSlide .5s .7s ease both;
+}
+.lf-btn {
+  width: 100%;
   padding: 13px 16px;
   background: linear-gradient(135deg, #3f79af 0%, #1a3d61 50%, #3f79af 100%);
-  border: 1px solid rgba(63, 121, 175, .4);
+  border: 1px solid rgba(63,121,175,.4);
   border-radius: 2px;
   color: #ffffff;
   font-size: 12px;
@@ -139,64 +346,254 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 9px;
   letter-spacing: 2.5px;
   text-transform: uppercase;
   font-family: 'Inter', system-ui, sans-serif;
-  animation: brandGlow 3s ease-in-out infinite, fadeSlide .5s .7s ease both;
+  animation: brandGlow 3s ease-in-out infinite;
   transition: transform .2s, opacity .2s;
   position: relative;
   overflow: hidden;
 }
-
-.reset-submit:hover:not(:disabled) {
-  transform: translateY(-1px);
-}
-
-.reset-submit:disabled {
-  opacity: .7;
-  cursor: not-allowed;
-}
-
-/* Sheen sweep on button — matches .lf-btn-sheen */
-.reset-submit::after {
-  content: '';
+.lf-btn:hover:not(:disabled) { transform: translateY(-1px); }
+.lf-btn:disabled { opacity: .7; cursor: not-allowed; }
+.lf-btn-sheen {
   position: absolute;
-  top: 0;
-  left: -80px;
-  width: 60px;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(91, 163, 217, .18), transparent);
+  top: 0; left: -80px;
+  width: 60px; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(91,163,217,.18), transparent);
   animation: sheenSweep 3.5s ease-in-out 1.5s infinite;
   pointer-events: none;
 }
+.lf-btn-ring {
+  position: absolute;
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(91,163,217,.5);
+  animation: pulseRing 1.8s ease-out 2s infinite;
+  pointer-events: none;
+}
 
-/* ── Error message — already defined in LoginPage.css, keep consistent ── */
-/* .login-error is shared — no change needed */
+/* ── Reset form (no full-width button override needed) ── */
+.lf-reset-form { display: block; }
+
+/* ══════════════════════════════════
+   FOOTER & STATS
+══════════════════════════════════ */
+
+.lf-stats {
+  display: flex;
+  gap: 1.6rem;
+  justify-content: center;
+  margin-top: 1.5rem;
+  flex-wrap: wrap;
+  animation: fadeSlide .6s 1s ease both;
+}
+.lf-sn {
+  font-size: 17px; font-weight: 700;
+  text-align: center; color: #1a3d61;
+  font-family: 'Inter', system-ui, sans-serif;
+}
+.lf-sl {
+  font-size: 9px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: #8aabca;
+  text-align: center;
+  margin-top: 2px;
+  font-family: 'Inter', system-ui, sans-serif;
+}
+.lf-copy {
+  text-align: center;
+  font-size: 10px;
+  color: #9bbdd4;
+  margin-top: 1rem;
+  letter-spacing: 1px;
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+/* ══════════════════════════════════
+   ERROR / SUCCESS MESSAGES
+══════════════════════════════════ */
+.login-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: #fee2e2;
+  color: #b91c1c;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  margin: 8px 0;
+  font-family: 'Inter', system-ui, sans-serif;
+}
+.login-success {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: #dcfce7;
+  border: 1px solid #86efac;
+  color: #16a34a;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  margin: 8px 0;
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+/* ══════════════════════════════════
+   PAGE-CUT TRANSITION
+   Two halves cover the screen; on .cut-active they
+   slide away (top up, bottom down) to reveal dashboard.
+══════════════════════════════════ */
+.page-cut-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+
+  /* Hidden by default — appears only when login succeeds */
+  opacity: 0;
+  visibility: hidden;
+}
+
+.cut-top,
+.cut-bottom {
+  flex: 1;                           /* each takes exactly 50 % of viewport */
+  background: #1a3d61;               /* deep navy — brand colour */
+  position: relative;
+}
+
+/* Decorative diagonal cut line on the seam */
+.cut-top::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0; right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #3f79af, #5a9fd4, #3f79af);
+  box-shadow: 0 0 12px rgba(91,163,217,.6);
+}
+.cut-bottom::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: 0; right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #3f79af, #5a9fd4, #3f79af);
+  box-shadow: 0 0 12px rgba(91,163,217,.6);
+}
+
+/* ── Active state: panels slide apart ── */
+.page-cut-overlay.cut-active {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: all;
+}
+
+.page-cut-overlay.cut-active .cut-top {
+  animation: cutTop 0.55s cubic-bezier(0.76, 0, 0.24, 1) 0.1s forwards;
+}
+
+.page-cut-overlay.cut-active .cut-bottom {
+  animation: cutBottom 0.55s cubic-bezier(0.76, 0, 0.24, 1) 0.1s forwards;
+}
 
 /* ══════════════════════════════════
    RESPONSIVE — Tablet (≤ 768px)
 ══════════════════════════════════ */
 @media (max-width: 768px) {
-  .reset-page  { padding: 20px 16px 40px; align-items: flex-start; }
-  .reset-card  { max-width: 100%; }
-  .reset-title { font-size: 22px; }
+  .lf-page { padding: 20px 16px 40px; align-items: flex-start; }
+  .lf-fbadge { display: none; }
+  .lf-center { max-width: 100%; }
+  .lf-logo { font-size: 26px; }
 }
 
 /* ══════════════════════════════════
    RESPONSIVE — Small phones (≤ 480px)
 ══════════════════════════════════ */
 @media (max-width: 480px) {
-  .reset-page        { padding: 12px 12px 32px; }
-  .reset-card        { padding: 1.6rem 1.2rem 1.4rem; }
-  .reset-title       { font-size: 21px; }
-  .form-group input  { font-size: 14px; padding: 13px; }
-  .reset-submit      { font-size: 11px; letter-spacing: 1.8px; padding: 12px 14px; }
+  .lf-page { padding: 12px 12px 32px; background-attachment: scroll; }
+  .lf-card { padding: 1.6rem 1.2rem 1.4rem; }
+  .lf-heading { font-size: 21px; }
+  .lf-inp { font-size: 14px; padding: 13px 13px 13px 36px; }
+  .lf-btn { font-size: 11px; letter-spacing: 1.8px; padding: 12px 14px; }
 }
 
 /* ══════════════════════════════════
    RESPONSIVE — Very small (≤ 360px)
 ══════════════════════════════════ */
 @media (max-width: 360px) {
-  .reset-card  { padding: 1.4rem 1rem 1.2rem; }
-  .reset-title { font-size: 18px; }
+  .lf-card { padding: 1.4rem 1rem 1.2rem; }
+  .lf-heading { font-size: 18px; }
 }
+
+/* ══════════════════════════════════
+   SCISSORS OVERLAY
+   position:fixed escapes .lf-page overflow:hidden
+   so the scissor can travel the full viewport width
+══════════════════════════════════ */
+.sc-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  flex-direction: column;
+  pointer-events: none;
+  /* display toggled by JS — starts display:none */
+}
+
+.sc-top,
+.sc-bot {
+  flex: 1;
+  background: #1a3d61;
+  position: relative;
+  will-change: transform;
+}
+
+/* glowing seam lines */
+.sc-seam {
+  position: absolute;
+  left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #3f79af, #5a9fd4, #3f79af);
+  box-shadow: 0 0 10px rgba(91,163,217,.7);
+}
+.sc-seam-bot { bottom: 0; }
+.sc-seam-top { top: 0; }
+
+/* ── scissor rider ── */
+.sc-rider {
+  position: fixed;
+  top: 50%;
+  /* left set by JS */
+  transform: translateY(-50%);
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  pointer-events: none;
+  filter: drop-shadow(0 0 6px rgba(63,121,175,.5));
+}
+
+/* blade SVGs — pivot point is the circle (left side) */
+.sc-blade-top {
+  transform-origin: 12px 9px;   /* circle centre in SVG coords */
+  transform: rotate(0deg);
+  transition: transform 0.18s ease-in-out;
+  display: block;
+}
+.sc-blade-bot {
+  transform-origin: 12px 9px;
+  transform: rotate(0deg);
+  transition: transform 0.18s ease-in-out;
+  display: block;
+}
+
+/* when .sc-open is added the blades spread apart */
+.sc-rider.sc-open .sc-blade-top { transform: rotate(-22deg); }
+.sc-rider.sc-open .sc-blade-bot { transform: rotate( 22deg); }
