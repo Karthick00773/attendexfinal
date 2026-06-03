@@ -146,13 +146,7 @@ export default function Sidebar() {
 
         <div style={{ flex: 1 }} />
 
-        {/* Logout */}
-        <div className="sidebar-footer">
-          <button className="logout-btn" onClick={handleLogout}>
-            {icons.logout}
-            <span>Logout</span>
-          </button>
-        </div>
+        {/* DEMO MODE: Logout button hidden */}
       </aside>
     </>
   );

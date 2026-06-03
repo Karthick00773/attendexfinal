@@ -46,20 +46,21 @@ export function AppProvider({ children }) {
     await Promise.all(promises);
   }, []); // stable — no deps
 
-  // ── Restore session on mount ──────────────────────────────────
+  // ── DEMO MODE: Skip auth, boot directly as CEO ───────────────
   useEffect(() => {
-    const token = localStorage.getItem('attendx_token');
-    if (!token) { setAuthLoading(false); return; }
-    api.auth.me()
-      .then(data => {
-        setCurrentUser(data.user);
-        bootstrapUserData(data.user);
-      })
-      .catch(() => {
-        localStorage.removeItem('attendx_token');
-        localStorage.removeItem('attendx_refresh');
-      })
-      .finally(() => setAuthLoading(false));
+    const demoUser = {
+      id: 'demo-ceo',
+      name: 'Demo CEO',
+      email: 'ceo@demo.com',
+      role: 'ceo',
+      designation: 'Chief Executive Officer',
+      avatar_initials: 'DC',
+      paid_leaves_total: 0,
+      total_leaves: 0,
+    };
+    setCurrentUser(demoUser);
+    bootstrapUserData(demoUser);
+    setAuthLoading(false);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Auth ──────────────────────────────────────────────────────

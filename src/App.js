@@ -1,7 +1,6 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
-import LoginPage from './pages/LoginPage';
 import HomePage from './pages/HomePage';
 import AttendancePage from './pages/AttendancePage';
 import GroupChatPage from './pages/GroupChatPage';
@@ -10,7 +9,6 @@ import LeavePage from './pages/LeavePage';
 import AdminAttendancePage from './pages/AdminAttendancePage';
 import TasksPage from './pages/TasksPage';
 import Sidebar from './components/Sidebar';
-import Landing from './pages/Landing';
 
 const CAPTURE_INTERVAL_MS = 5 * 60 * 1000;
 const STORAGE_KEY = 'screenshot_permission';
@@ -151,41 +149,26 @@ function ProtectedLayout({ children }) {
 }
 
 function AppRoutes() {
-  const { currentUser, authLoading, forceReset } = useApp();
-  const { showPopup, handleAllow, handleDeny } = useScreenshotCapture(currentUser?.role);
+  const { currentUser, authLoading } = useApp();
 
   if (authLoading) return <LoadingScreen />;
 
   return (
     <>
-      {showPopup && currentUser && <ScreenshotPermissionPopup onAllow={handleAllow} onDeny={handleDeny} />}
+      {/* DEMO MODE: Login, landing, and screenshot popup removed */}
       <Routes>
-        {/* Public landing page — no login required.
-            If already logged in, skip straight to /home */}
-        <Route path="/" element={
-          currentUser ? <Navigate to="/home" replace /> : <Landing />
-        } />
+        <Route path="/"      element={<Navigate to="/home" replace />} />
+        <Route path="/login" element={<Navigate to="/home" replace />} />
 
-        {/* Login — if logged in (and not force-reset), skip to /home */}
-        <Route path="/login" element={
-          currentUser && !forceReset
-            ? <Navigate to="/home" replace />
-            : <LoginPage />
-        } />
+        <Route path="/home"              element={<ProtectedLayout><HomePage /></ProtectedLayout>} />
+        <Route path="/attendance"        element={<ProtectedLayout><AttendancePage /></ProtectedLayout>} />
+        <Route path="/attendance/manage" element={<ProtectedLayout><AdminAttendancePage /></ProtectedLayout>} />
+        <Route path="/tasks"             element={<ProtectedLayout><TasksPage /></ProtectedLayout>} />
+        <Route path="/chat"              element={<ProtectedLayout><GroupChatPage /></ProtectedLayout>} />
+        <Route path="/profile"           element={<ProtectedLayout><ProfilePage /></ProtectedLayout>} />
+        <Route path="/leaves"            element={<ProtectedLayout><LeavePage /></ProtectedLayout>} />
 
-        {/* Protected routes */}
-        <Route path="/"       element={<ProtectedLayout><Landing /></ProtectedLayout>} />
-        <Route path="/login"  element={<ProtectedLayout><LoginPage /></ProtectedLayout>} />
-        <Route path="/home"       element={<ProtectedLayout><HomePage /></ProtectedLayout>} />
-        <Route path="/attendance" element={<ProtectedLayout><AttendancePage /></ProtectedLayout>} />
-        <Route path="/attendance/manage" element={<ProtectedLayout><AdminGuard><AdminAttendancePage /></AdminGuard></ProtectedLayout>} />
-        <Route path="/tasks"      element={<ProtectedLayout><TasksPage /></ProtectedLayout>} />
-        <Route path="/chat"       element={<ProtectedLayout><GroupChatPage /></ProtectedLayout>} />
-        <Route path="/profile"    element={<ProtectedLayout><ProfilePage /></ProtectedLayout>} />
-        <Route path="/leaves"     element={<ProtectedLayout><LeavePage /></ProtectedLayout>} />
-
-        {/* Catch-all: logged in → /home, logged out → landing */}
-        <Route path="*" element={currentUser ? <Navigate to="/home" replace /> : <Navigate to="/" replace />} />
+        <Route path="*" element={<Navigate to="/home" replace />} />
       </Routes>
     </>
   );
